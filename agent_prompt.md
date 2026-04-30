@@ -6,11 +6,39 @@ You are running the daily news digest. Follow every step in order. Do not skip s
 
 Use WebFetch to retrieve each URL below. Collect every `<item>` or `<entry>` element.
 
-### AI News
+### Lab & Company Blogs
+- https://openai.com/news/rss.xml
+- https://deepmind.google/blog/rss.xml
+- https://research.google/blog/rss
+- https://www.anthropic.com/rss.xml
+- https://ai.meta.com/blog/feed/
+- https://blogs.microsoft.com/ai/feed/
+- https://huggingface.co/blog/feed.xml
+- https://mistral.ai/news/rss
+
+### Tech News
 - https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
 - https://techcrunch.com/category/artificial-intelligence/feed/
 - https://venturebeat.com/category/ai/feed/
+- https://www.wired.com/feed/tag/ai/latest/rss
+- https://www.technologyreview.com/feed/
+- https://feeds.arstechnica.com/arstechnica/index
+- https://www.theguardian.com/technology/artificialintelligenceai/rss
+- https://www.fastcompany.com/technology/rss
+
+### Research & Technical
+- https://rss.arxiv.org/rss/cs.AI
+- https://bair.berkeley.edu/blog/feed.xml
+- https://magazine.sebastianraschka.com/feed
+
+### Community & Aggregators
 - https://hnrss.org/newest?q=AI&points=50
+- https://www.reddit.com/r/MachineLearning/.rss
+
+### Business & Investment
+- https://aibusiness.com/rss.xml
+- https://siliconangle.com/category/ai/feed
+- https://futurism.com/categories/ai-artificial-intelligence/feed
 
 ### Podcasts
 - https://lexfridman.com/feed/podcast/
@@ -36,6 +64,7 @@ For each item extract:
 - `pubDate` or `<published>` (publication timestamp)
 - The feed's own `<title>` as `source`
 - `category`: one of "ai", "podcast", "world", or "australia" based on which group above it came from
+- `subcategory` (for ai items only): one of "lab", "tech", "research", "community", or "business"
 
 Only keep items published within the **last 24 hours** (compare against current UTC time).
 For podcasts, keep the last 48 hours since episodes publish less frequently.
@@ -49,10 +78,11 @@ Within each category, remove items whose title is highly similar (≥75% charact
 Produce a digest with **three sections**. Use only the titles, sources, and episode descriptions you collected — do not fetch individual articles or episode pages.
 
 ### Section A — AI Overview & Top Stories
-1. A **3-sentence overview** of the day in AI.
-2. The **5 most important AI stories**, ranked by significance. For each:
+1. A **3-sentence overview** of the day in AI — cover model releases, research breakthroughs, business moves, and policy/safety developments if present.
+2. The **8 most important AI stories**, ranked by significance. Aim for variety across subcategories (lab announcements, tech news, research, community buzz, business). For each:
    - TITLE: <title>
    - SOURCE: <source>
+   - TAG: <one of: Lab Announcement | Research | Industry News | Community | Business>
    - URL: <url>
    - SUMMARY: <2 sentences>
 
@@ -154,7 +184,21 @@ Construct the HTML email below. Replace all placeholders. Escape `&`, `<`, `>` i
 </html>
 ```
 
-For **AI_STORIES_HTML** and **WORLD_STORIES_HTML**, repeat for each story:
+For **AI_STORIES_HTML**, repeat for each story (include the TAG badge):
+```html
+<div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #e5e7eb;">
+  <p style="margin:0 0 6px 0;">
+    <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">INDEX. SOURCE</span>
+    &nbsp;<span style="display:inline-block;padding:2px 8px;font-size:11px;font-weight:600;border-radius:999px;background:#dbeafe;color:#1e40af;">TAG</span>
+  </p>
+  <h3 style="margin:0 0 8px;font-size:17px;font-weight:600;line-height:1.4;">
+    <a href="URL" style="color:#1d4ed8;text-decoration:none;">TITLE</a>
+  </h3>
+  <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">SUMMARY</p>
+</div>
+```
+
+For **WORLD_STORIES_HTML** and **AUS_STORIES_HTML**, repeat for each story:
 ```html
 <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #e5e7eb;">
   <p style="margin:0 0 4px;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">INDEX. SOURCE</p>

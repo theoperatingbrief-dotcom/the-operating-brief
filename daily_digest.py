@@ -14,26 +14,50 @@ from dotenv import load_dotenv
 load_dotenv()
 
 FEEDS = [
-    # AI News
+    # --- Lab & Company Blogs ---
+    "https://openai.com/news/rss.xml",
+    "https://deepmind.google/blog/rss.xml",
+    "https://research.google/blog/rss",
+    "https://www.anthropic.com/rss.xml",
+    "https://ai.meta.com/blog/feed/",
+    "https://blogs.microsoft.com/ai/feed/",
+    "https://huggingface.co/blog/feed.xml",
+    "https://mistral.ai/news/rss",
+    # --- Tech News ---
     "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
     "https://techcrunch.com/category/artificial-intelligence/feed/",
     "https://venturebeat.com/category/ai/feed/",
+    "https://www.wired.com/feed/tag/ai/latest/rss",
+    "https://www.technologyreview.com/feed/",
+    "https://feeds.arstechnica.com/arstechnica/index",
+    "https://www.theguardian.com/technology/artificialintelligenceai/rss",
+    "https://www.fastcompany.com/technology/rss",
+    # --- Research & Technical ---
+    "https://rss.arxiv.org/rss/cs.AI",
+    "https://bair.berkeley.edu/blog/feed.xml",
+    "https://magazine.sebastianraschka.com/feed",      # Ahead of AI
+    # --- Community & Aggregators ---
     "https://hnrss.org/newest?q=AI&points=50",
-    # Podcasts
+    "https://www.reddit.com/r/MachineLearning/.rss",
+    # --- Business & Investment ---
+    "https://aibusiness.com/rss.xml",
+    "https://siliconangle.com/category/ai/feed",
+    "https://futurism.com/categories/ai-artificial-intelligence/feed",
+    # --- Podcasts ---
     "https://lexfridman.com/feed/podcast/",
     "https://changelog.com/practicalai/feed",
     "https://feeds.simplecast.com/l2i9YnTd",          # Hard Fork (NYT)
     "https://twimlai.com/feed/",                       # This Week in ML & AI
-    # World News
+    # --- World News ---
     "https://feeds.bbci.co.uk/news/world/rss.xml",
     "https://feeds.reuters.com/reuters/topNews",
     "https://feeds.npr.org/1001/rss.xml",
     "https://www.theguardian.com/world/rss",
-    # Australian News
-    "https://www.abc.net.au/news/feed/51120/rss.xml",   # ABC News Australia
-    "https://www.smh.com.au/rss/feed.xml",              # Sydney Morning Herald
-    "https://www.theguardian.com/australia-news/rss",   # Guardian Australia
-    "https://www.afr.com/rss",                          # Australian Financial Review
+    # --- Australian News ---
+    "https://www.abc.net.au/news/feed/51120/rss.xml",
+    "https://www.smh.com.au/rss/feed.xml",
+    "https://www.theguardian.com/australia-news/rss",
+    "https://www.afr.com/rss",
 ]
 
 SIMILARITY_THRESHOLD = 0.75
