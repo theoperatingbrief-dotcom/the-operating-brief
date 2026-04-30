@@ -29,6 +29,11 @@ FEEDS = [
     "https://feeds.reuters.com/reuters/topNews",
     "https://feeds.npr.org/1001/rss.xml",
     "https://www.theguardian.com/world/rss",
+    # Australian News
+    "https://www.abc.net.au/news/feed/51120/rss.xml",   # ABC News Australia
+    "https://www.smh.com.au/rss/feed.xml",              # Sydney Morning Herald
+    "https://www.theguardian.com/australia-news/rss",   # Guardian Australia
+    "https://www.afr.com/rss",                          # Australian Financial Review
 ]
 
 SIMILARITY_THRESHOLD = 0.75

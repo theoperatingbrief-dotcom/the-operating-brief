@@ -24,12 +24,18 @@ Use WebFetch to retrieve each URL below. Collect every `<item>` or `<entry>` ele
 - https://feeds.npr.org/1001/rss.xml
 - https://www.theguardian.com/world/rss
 
+### Australian News
+- https://www.abc.net.au/news/feed/51120/rss.xml
+- https://www.smh.com.au/rss/feed.xml
+- https://www.theguardian.com/australia-news/rss
+- https://www.afr.com/rss
+
 For each item extract:
 - `title` (text content of `<title>`)
 - `link` / `<link href="">` (the article/episode URL)
 - `pubDate` or `<published>` (publication timestamp)
 - The feed's own `<title>` as `source`
-- `category`: one of "ai", "podcast", or "world" based on which group above it came from
+- `category`: one of "ai", "podcast", "world", or "australia" based on which group above it came from
 
 Only keep items published within the **last 24 hours** (compare against current UTC time).
 For podcasts, keep the last 48 hours since episodes publish less frequently.
@@ -61,7 +67,15 @@ If fewer than 3 new episodes appeared in the last 48 hours, list however many th
 
 ### Section C — World News
 1. A **2-sentence snapshot** of the biggest global story right now.
-2. The **5 most important world news stories**. For each:
+2. The **5 most important world stories**. For each:
+   - TITLE: <title>
+   - SOURCE: <source>
+   - URL: <url>
+   - SUMMARY: <2 sentences>
+
+### Section D — Australian News
+1. A **2-sentence snapshot** of the biggest story in Australia right now.
+2. The **5 most important Australian stories**. For each:
    - TITLE: <title>
    - SOURCE: <source>
    - URL: <url>
@@ -116,6 +130,16 @@ Construct the HTML email below. Replace all placeholders. Escape `&`, `<`, `>` i
     <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">Global Snapshot</h2>
     <p style="margin:0 0 24px;font-size:16px;color:#1f2937;line-height:1.7;padding:20px;background:#ecfdf5;border-left:4px solid #059669;border-radius:0 8px 8px 0;">WORLD_OVERVIEW</p>
     WORLD_STORIES_HTML
+  </td></tr>
+
+  <tr><td style="padding:0 40px;"><hr style="border:none;border-top:2px solid #e5e7eb;margin:0;"></td></tr>
+
+  <!-- Australian News Section -->
+  <tr><td style="padding:32px 40px 8px;">
+    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.12em;">🇦🇺 Australian News</p>
+    <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">Australia Snapshot</h2>
+    <p style="margin:0 0 24px;font-size:16px;color:#1f2937;line-height:1.7;padding:20px;background:#fef2f2;border-left:4px solid #dc2626;border-radius:0 8px 8px 0;">AUS_OVERVIEW</p>
+    AUS_STORIES_HTML
   </td></tr>
 
   <!-- Footer -->
