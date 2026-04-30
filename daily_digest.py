@@ -14,10 +14,21 @@ from dotenv import load_dotenv
 load_dotenv()
 
 FEEDS = [
+    # AI News
     "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
     "https://techcrunch.com/category/artificial-intelligence/feed/",
     "https://venturebeat.com/category/ai/feed/",
     "https://hnrss.org/newest?q=AI&points=50",
+    # Podcasts
+    "https://lexfridman.com/feed/podcast/",
+    "https://changelog.com/practicalai/feed",
+    "https://feeds.simplecast.com/l2i9YnTd",          # Hard Fork (NYT)
+    "https://twimlai.com/feed/",                       # This Week in ML & AI
+    # World News
+    "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://feeds.reuters.com/reuters/topNews",
+    "https://feeds.npr.org/1001/rss.xml",
+    "https://www.theguardian.com/world/rss",
 ]
 
 SIMILARITY_THRESHOLD = 0.75

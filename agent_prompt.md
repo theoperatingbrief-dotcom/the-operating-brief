@@ -1,73 +1,128 @@
-# Daily AI News Digest Agent
+# Daily News Digest Agent
 
-You are running the daily AI news digest. Follow every step in order. Do not skip steps.
+You are running the daily news digest. Follow every step in order. Do not skip steps.
 
 ## Step 1 — Fetch RSS feeds
 
-Use WebFetch to retrieve each of these 4 URLs. Collect every `<item>` or `<entry>` element:
+Use WebFetch to retrieve each URL below. Collect every `<item>` or `<entry>` element.
 
+### AI News
 - https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
 - https://techcrunch.com/category/artificial-intelligence/feed/
 - https://venturebeat.com/category/ai/feed/
 - https://hnrss.org/newest?q=AI&points=50
 
+### Podcasts
+- https://lexfridman.com/feed/podcast/
+- https://changelog.com/practicalai/feed
+- https://feeds.simplecast.com/l2i9YnTd
+- https://twimlai.com/feed/
+
+### World News
+- https://feeds.bbci.co.uk/news/world/rss.xml
+- https://feeds.reuters.com/reuters/topNews
+- https://feeds.npr.org/1001/rss.xml
+- https://www.theguardian.com/world/rss
+
 For each item extract:
 - `title` (text content of `<title>`)
-- `link` / `<link href="">` (the article URL)
+- `link` / `<link href="">` (the article/episode URL)
 - `pubDate` or `<published>` (publication timestamp)
 - The feed's own `<title>` as `source`
+- `category`: one of "ai", "podcast", or "world" based on which group above it came from
 
 Only keep items published within the **last 24 hours** (compare against current UTC time).
+For podcasts, keep the last 48 hours since episodes publish less frequently.
 
 ## Step 2 — Deduplicate
 
-Remove items whose title is highly similar (≥75% character overlap) to an already-seen title. Keep the first occurrence.
+Within each category, remove items whose title is highly similar (≥75% character overlap) to an already-seen title. Keep the first occurrence.
 
 ## Step 3 — Summarise
 
-Using only the titles and sources you have collected (do not fetch individual articles), produce a digest:
+Produce a digest with **three sections**. Use only the titles, sources, and episode descriptions you collected — do not fetch individual articles or episode pages.
 
-1. A **3-sentence overview** of the day in AI — what themes dominated, what was most significant.
-2. The **10 most important stories**, ranked by significance and novelty. For each story output exactly:
+### Section A — AI Overview & Top Stories
+1. A **3-sentence overview** of the day in AI.
+2. The **5 most important AI stories**, ranked by significance. For each:
    - TITLE: <title>
-   - SOURCE: <source name>
+   - SOURCE: <source>
    - URL: <url>
-   - SUMMARY: <2 sentences summarising the story based on its title and source context>
+   - SUMMARY: <2 sentences>
+
+### Section B — Podcast Picks
+List up to **3 recent episodes** worth listening to. For each:
+   - TITLE: <episode title>
+   - SHOW: <podcast name>
+   - URL: <episode url>
+   - SUMMARY: <1–2 sentences on what the episode covers>
+
+If fewer than 3 new episodes appeared in the last 48 hours, list however many there are (even 0 is fine — just say "No new episodes today").
+
+### Section C — World News
+1. A **2-sentence snapshot** of the biggest global story right now.
+2. The **5 most important world news stories**. For each:
+   - TITLE: <title>
+   - SOURCE: <source>
+   - URL: <url>
+   - SUMMARY: <2 sentences>
 
 ## Step 4 — Read config
 
-Use the Read tool to open `.env` in the working directory. Extract the value of `RESEND_API_KEY` and `FROM_EMAIL`.
+Use the Read tool to open `.env` in the working directory. Extract `RESEND_API_KEY` and `FROM_EMAIL`.
 Use the Read tool to open `recipients.txt`. Collect every non-blank, non-comment line as a recipient email address.
 
 ## Step 5 — Build HTML email
 
-Construct the following HTML email. Replace all placeholders with real values:
+Construct the HTML email below. Replace all placeholders. Escape `&`, `<`, `>` in titles and summaries as HTML entities.
 
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>AI News Digest – DATE</title></head>
+<head><meta charset="UTF-8"><title>Daily Digest – DATE</title></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
 <tr><td align="center">
 <table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
-<tr><td style="background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 100%);padding:36px 40px;">
-  <p style="margin:0 0 4px;font-size:12px;color:#93c5fd;text-transform:uppercase;letter-spacing:.1em;">Daily Briefing</p>
-  <h1 style="margin:0;font-size:28px;font-weight:700;color:#fff;">AI News Digest</h1>
-  <p style="margin:8px 0 0;font-size:14px;color:#bfdbfe;">DATE</p>
-</td></tr>
-<tr><td style="padding:32px 40px 24px;">
-  <h2 style="margin:0 0 12px;font-size:13px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;">Today's Overview</h2>
-  <p style="margin:0;font-size:16px;color:#1f2937;line-height:1.7;padding:20px;background:#eff6ff;border-left:4px solid #1d4ed8;border-radius:0 8px 8px 0;">OVERVIEW</p>
-</td></tr>
-<tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:0;"></td></tr>
-<tr><td style="padding:28px 40px 8px;">
-  <h2 style="margin:0 0 24px;font-size:13px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;">Top 10 Stories</h2>
-  STORIES_HTML
-</td></tr>
-<tr><td style="padding:24px 40px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
-  <p style="margin:0;font-size:13px;color:#9ca3af;text-align:center;">Generated by AI News Digest · Powered by Claude &amp; Resend</p>
-</td></tr>
+
+  <!-- Header -->
+  <tr><td style="background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 100%);padding:36px 40px;">
+    <p style="margin:0 0 4px;font-size:12px;color:#93c5fd;text-transform:uppercase;letter-spacing:.1em;">Daily Briefing</p>
+    <h1 style="margin:0;font-size:28px;font-weight:700;color:#fff;">Your Daily Digest</h1>
+    <p style="margin:8px 0 0;font-size:14px;color:#bfdbfe;">DATE</p>
+  </td></tr>
+
+  <!-- AI Section -->
+  <tr><td style="padding:32px 40px 8px;">
+    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.12em;">🤖 Artificial Intelligence</p>
+    <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">AI Overview</h2>
+    <p style="margin:0 0 24px;font-size:16px;color:#1f2937;line-height:1.7;padding:20px;background:#eff6ff;border-left:4px solid #1d4ed8;border-radius:0 8px 8px 0;">AI_OVERVIEW</p>
+    AI_STORIES_HTML
+  </td></tr>
+
+  <tr><td style="padding:0 40px;"><hr style="border:none;border-top:2px solid #e5e7eb;margin:0;"></td></tr>
+
+  <!-- Podcasts Section -->
+  <tr><td style="padding:32px 40px 8px;">
+    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.12em;">🎙️ Podcast Picks</p>
+    PODCAST_HTML
+  </td></tr>
+
+  <tr><td style="padding:0 40px;"><hr style="border:none;border-top:2px solid #e5e7eb;margin:0;"></td></tr>
+
+  <!-- World News Section -->
+  <tr><td style="padding:32px 40px 8px;">
+    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:.12em;">🌍 World News</p>
+    <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">Global Snapshot</h2>
+    <p style="margin:0 0 24px;font-size:16px;color:#1f2937;line-height:1.7;padding:20px;background:#ecfdf5;border-left:4px solid #059669;border-radius:0 8px 8px 0;">WORLD_OVERVIEW</p>
+    WORLD_STORIES_HTML
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="padding:24px 40px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+    <p style="margin:0;font-size:13px;color:#9ca3af;text-align:center;">Generated by Daily Digest &middot; Powered by Claude &amp; Resend</p>
+  </td></tr>
+
 </table>
 </td></tr>
 </table>
@@ -75,24 +130,42 @@ Construct the following HTML email. Replace all placeholders with real values:
 </html>
 ```
 
-For STORIES_HTML, repeat this block for each of the 10 stories (set INDEX to 1–10):
-
+For **AI_STORIES_HTML** and **WORLD_STORIES_HTML**, repeat for each story:
 ```html
-<div style="margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid #e5e7eb;">
-  <p style="margin:0 0 4px;font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">INDEX. SOURCE</p>
-  <h2 style="margin:0 0 8px;font-size:18px;font-weight:600;line-height:1.4;">
+<div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #e5e7eb;">
+  <p style="margin:0 0 4px;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">INDEX. SOURCE</p>
+  <h3 style="margin:0 0 8px;font-size:17px;font-weight:600;line-height:1.4;">
     <a href="URL" style="color:#1d4ed8;text-decoration:none;">TITLE</a>
-  </h2>
-  <p style="margin:0;font-size:15px;color:#374151;line-height:1.6;">SUMMARY</p>
+  </h3>
+  <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">SUMMARY</p>
 </div>
 ```
 
-Escape any `&`, `<`, `>` characters in titles and summaries as HTML entities.
+For **PODCAST_HTML**, use this block per episode (or a single `<p>No new episodes today.</p>` if none):
+```html
+<div style="margin-bottom:20px;padding:16px;background:#faf5ff;border-radius:8px;border:1px solid #e9d5ff;">
+  <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#7c3aed;">SHOW_NAME</p>
+  <h3 style="margin:0 0 8px;font-size:16px;font-weight:600;line-height:1.4;">
+    <a href="URL" style="color:#6d28d9;text-decoration:none;">EPISODE_TITLE</a>
+  </h3>
+  <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">SUMMARY</p>
+</div>
+```
 
 ## Step 6 — Send via Resend API
 
-Use the Bash tool to run this curl command (substitute real values for ALL_CAPS placeholders — build the JSON carefully, escaping quotes inside the HTML):
+Write the JSON payload to `/tmp/digest_payload.json` using the Write tool:
 
+```json
+{
+  "from": "FROM_EMAIL",
+  "to": ["recipient1@example.com"],
+  "subject": "Your Daily Digest – DATE",
+  "html": "<full HTML string>"
+}
+```
+
+Then send with Bash:
 ```bash
 curl -s -X POST 'https://api.resend.com/emails' \
   -H 'Authorization: Bearer RESEND_API_KEY' \
@@ -100,17 +173,6 @@ curl -s -X POST 'https://api.resend.com/emails' \
   -d @/tmp/digest_payload.json
 ```
 
-Before running curl, write the JSON payload to `/tmp/digest_payload.json` using the Write tool. The payload shape is:
-
-```json
-{
-  "from": "FROM_EMAIL",
-  "to": ["recipient1@example.com", "recipient2@example.com"],
-  "subject": "AI News Digest – DATE",
-  "html": "<full HTML string>"
-}
-```
-
 ## Step 7 — Report
 
-Print a short summary: how many stories were found, how many after deduplication, and whether the email was sent successfully (include the Resend response ID if present).
+Print: total stories fetched per category, count after deduplication, and the Resend response ID if the send succeeded.
