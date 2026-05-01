@@ -285,9 +285,9 @@ def render_html(d: dict, date_str: str) -> str:
 <table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
 
   <!-- Header -->
-  <tr><td style="background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 100%);padding:40px 40px 32px;text-align:center;">
+  <tr><td bgcolor="#1e3a8a" style="background:#1e3a8a;padding:40px 40px 32px;text-align:center;">
     <p style="margin:0 0 8px;font-size:11px;color:#93c5fd;text-transform:uppercase;letter-spacing:.18em;">Est. every weekday morning</p>
-    <h1 style="margin:0;font-size:36px;font-weight:800;color:#fff;font-family:Georgia,serif;letter-spacing:-.5px;">The Operating Brief</h1>
+    <h1 style="margin:0;font-size:36px;font-weight:800;color:#ffffff;font-family:Georgia,serif;letter-spacing:-.5px;">The Operating Brief</h1>
     <p style="margin:10px 0 0;font-size:13px;color:#bfdbfe;font-style:italic;">Everything you need to run smarter today &mdash; {date_str}</p>
   </td></tr>
 
