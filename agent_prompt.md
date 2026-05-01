@@ -228,23 +228,36 @@ For **PODCAST_HTML**, use this block per episode (or a single `<p>No new episode
 
 ## Step 6 — Send via Resend API
 
-Write the JSON payload to `/tmp/digest_payload.json` using the Write tool:
+Use the Write tool to save the full HTML to `/tmp/digest.html`, then use the Bash tool to run this Python snippet (substitute RESEND_API_KEY, FROM_EMAIL, RECIPIENT_EMAIL, and DATE with real values):
 
-```json
-{
-  "from": "FROM_EMAIL",
-  "to": ["recipient1@example.com"],
-  "subject": "Your Daily Digest – DATE",
-  "html": "<full HTML string>"
-}
-```
-
-Then send with Bash:
 ```bash
-curl -s -X POST 'https://api.resend.com/emails' \
-  -H 'Authorization: Bearer RESEND_API_KEY' \
-  -H 'Content-Type: application/json' \
-  -d @/tmp/digest_payload.json
+python3 - <<'PYEOF'
+import urllib.request, urllib.error, json
+
+with open('/tmp/digest.html', 'r') as f:
+    html = f.read()
+
+payload = json.dumps({
+    "from": "FROM_EMAIL",
+    "to": ["RECIPIENT_EMAIL"],
+    "subject": "Your Daily Digest – DATE",
+    "html": html
+}).encode('utf-8')
+
+req = urllib.request.Request(
+    'https://api.resend.com/emails',
+    data=payload,
+    headers={
+        'Authorization': 'Bearer RESEND_API_KEY',
+        'Content-Type': 'application/json'
+    }
+)
+try:
+    with urllib.request.urlopen(req) as resp:
+        print('Sent:', resp.read().decode())
+except urllib.error.HTTPError as e:
+    print('Error:', e.code, e.read().decode())
+PYEOF
 ```
 
 ## Step 7 — Report
