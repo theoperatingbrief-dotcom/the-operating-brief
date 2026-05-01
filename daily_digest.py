@@ -358,12 +358,11 @@ def get_supabase():
     return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 
-def load_recipients() -> list[str]:
+def load_recipients() -> list[dict]:
     sb = get_supabase()
-    result = sb.table("subscribers").select("email").eq("active", True).execute()
-    emails = [row["email"] for row in result.data]
-    print(f"  {len(emails)} active subscriber(s) from Supabase")
-    return emails
+    result = sb.table("subscribers").select("email,token").eq("active", True).execute()
+    print(f"  {len(result.data)} active subscriber(s) from Supabase")
+    return result.data  # list of {email, token}
 
 
 def log_send(subject: str, recipient_count: int, resend_id: str) -> None:
@@ -376,6 +375,20 @@ def log_send(subject: str, recipient_count: int, resend_id: str) -> None:
         }).execute()
     except Exception as ex:
         print(f"  WARN: could not log send: {ex}")
+
+
+def save_edition(slug: str, subject: str, preview_text: str, html_body: str) -> None:
+    try:
+        sb = get_supabase()
+        sb.table("editions").upsert({
+            "slug": slug,
+            "subject": subject,
+            "preview_text": preview_text,
+            "html": html_body,
+        }).execute()
+        print(f"  Edition saved to archive: {slug}")
+    except Exception as ex:
+        print(f"  WARN: could not save edition: {ex}")
 
 
 # ---------------------------------------------------------------------------
@@ -392,8 +405,28 @@ def send_email(to: list[str], subject: str, html_body: str) -> str:
     }
     resp = resend.Emails.send(params)
     resend_id = resp.get("id", str(resp))
-    print(f"  Email sent! ID: {resend_id}")
+    print(f"    Sent → {resend_id}")
     return resend_id
+
+
+def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[str]:
+    """Send individual emails with personalised unsubscribe links."""
+    resend_ids = []
+    for sub in subscribers:
+        token = sub.get("token", "")
+        email = sub["email"]
+        unsub_url = f"https://theoperatingbrief.com/unsubscribe?token={token}"
+        sub_url = "https://theoperatingbrief.com"
+        personalised = base_html.replace(
+            'href="mailto:hello@theoperatingbrief.com?subject=Subscribe%20to%20The%20Operating%20Brief"',
+            f'href="{sub_url}"'
+        ).replace(
+            'href="mailto:hello@theoperatingbrief.com?subject=Unsubscribe%20from%20The%20Operating%20Brief"',
+            f'href="{unsub_url}"'
+        )
+        resend_id = send_email([email], subject, personalised)
+        resend_ids.append(resend_id)
+    return resend_ids
 
 
 # ---------------------------------------------------------------------------
@@ -422,6 +455,11 @@ def main():
     print("Rendering HTML…")
     html_body = render_html(digest, date_str)
 
+    print("Saving edition to archive…")
+    slug = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    preview_text = digest.get("ai_overview", "")[:120]
+    save_edition(slug, subject, preview_text, html_body)
+
     print("Loading recipients…")
     recipients = load_recipients()
     if not recipients:
@@ -429,8 +467,8 @@ def main():
         return
 
     print(f"  Sending to {len(recipients)} recipient(s)")
-    resend_id = send_email(recipients, subject, html_body)
-    log_send(subject, len(recipients), resend_id)
+    resend_ids = send_to_all(recipients, subject, html_body)
+    log_send(subject, len(recipients), resend_ids[0] if resend_ids else "")
     print("Done! ✅")
 
 
