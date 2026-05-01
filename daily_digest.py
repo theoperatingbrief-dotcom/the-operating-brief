@@ -278,23 +278,22 @@ def render_html(d: dict, date_str: str) -> str:
 
     return f"""<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>Daily Digest – {date_str}</title></head>
+<head><meta charset="UTF-8"><title>The Operating Brief – {date_str}</title></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
 <tr><td align="center">
 <table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
 
   <!-- Header -->
-  <tr><td style="background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 100%);padding:36px 40px;">
-    <p style="margin:0 0 4px;font-size:12px;color:#93c5fd;text-transform:uppercase;letter-spacing:.1em;">Daily Briefing</p>
-    <h1 style="margin:0;font-size:28px;font-weight:700;color:#fff;">Your Daily Digest</h1>
-    <p style="margin:8px 0 0;font-size:14px;color:#bfdbfe;">{date_str}</p>
+  <tr><td style="background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 100%);padding:40px 40px 32px;text-align:center;">
+    <p style="margin:0 0 8px;font-size:11px;color:#93c5fd;text-transform:uppercase;letter-spacing:.18em;">Est. every weekday morning</p>
+    <h1 style="margin:0;font-size:36px;font-weight:800;color:#fff;font-family:Georgia,serif;letter-spacing:-.5px;">The Operating Brief</h1>
+    <p style="margin:10px 0 0;font-size:13px;color:#bfdbfe;font-style:italic;">Everything you need to run smarter today &mdash; {date_str}</p>
   </td></tr>
 
   <!-- Briefing -->
   <tr><td style="padding:32px 40px 28px;">
-    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.12em;">🎙️ Daily Business Briefing</p>
-    <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111827;">Your 10-Minute Read</h2>
+    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.12em;">🎙️ Today's Briefing</p>
     <p style="margin:0 0 20px;font-size:13px;color:#6b7280;">For Australian business operators · Full digest below</p>
     <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:24px 28px;font-size:15px;color:#1f2937;line-height:1.8;font-family:Georgia,serif;">
       <p style="margin:0 0 14px;">{briefing_html}</p>
@@ -373,7 +372,7 @@ def send_email(to: list[str], subject: str, html_body: str) -> None:
 # ---------------------------------------------------------------------------
 def main():
     date_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
-    subject = f"Your Daily Digest – {date_str}"
+    subject = f"The Operating Brief – {date_str}"
 
     print("Fetching RSS feeds…")
     entries = fetch_entries(FEEDS)
