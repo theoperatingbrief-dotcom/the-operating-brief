@@ -84,6 +84,31 @@ If fewer than 3 new episodes appeared in the last 48 hours, list however many th
    - URL: <url>
    - SUMMARY: <2 sentences>
 
+### Section E — Daily Podcast Script
+Write a **10–15 minute podcast script** (approximately 1,500–2,000 words) aimed at **Australian business operators**. The tone should be sharp, conversational, and forward-looking — like a smart colleague briefing you over coffee. No fluff.
+
+Structure it exactly as follows:
+
+**[INTRO — 1 min]**
+A punchy 3–4 sentence cold open that hooks the listener with the single most important story of the day and why it matters for Australian business.
+
+**[SEGMENT 1: AI & Technology — 3–4 mins]**
+Cover the top AI developments from today. For each story, answer: what happened, why it matters, and what Australian businesses should be watching or doing. Focus on practical implications — tools, competitive shifts, workforce impacts.
+
+**[SEGMENT 2: Australian Business & Finance — 3–4 mins]**
+Cover the top Australian business and financial stories. Include any relevant AFR/SMH/ABC business angles. Frame implications for local operators: supply chains, labour markets, regulatory changes, consumer trends.
+
+**[SEGMENT 3: World Markets & Global Business — 2–3 mins]**
+Cover the key global market movements and international business stories. Translate them for an Australian context — currency impacts, export/import implications, trading partner developments.
+
+**[SEGMENT 4: The Big Picture — 2 mins]**
+Synthesise all three segments into 1–2 key themes for the week. What should an Australian business operator be thinking about or acting on right now?
+
+**[OUTRO — 30 sec]**
+Crisp sign-off. Mention that the full digest with links is in the email below.
+
+Use natural spoken language throughout — short sentences, active voice, contractions. Write it so it can be read aloud without edits.
+
 ## Step 4 — Read config
 
 Use the Read tool to open `.env` in the working directory. Extract `RESEND_API_KEY` and `FROM_EMAIL`.
@@ -143,6 +168,16 @@ Construct the HTML email below. Replace all placeholders. Escape `&`, `<`, `>` i
     <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">Australia Snapshot</h2>
     <p style="margin:0 0 24px;font-size:16px;color:#1f2937;line-height:1.7;padding:20px;background:#fef2f2;border-left:4px solid #dc2626;border-radius:0 8px 8px 0;">AUS_OVERVIEW</p>
     AUS_STORIES_HTML
+  </td></tr>
+
+  <tr><td style="padding:0 40px;"><hr style="border:none;border-top:2px solid #e5e7eb;margin:0;"></td></tr>
+
+  <!-- Podcast Script Section -->
+  <tr><td style="padding:32px 40px 8px;">
+    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.12em;">🎙️ Daily Podcast Script</p>
+    <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111827;">Your 10-Minute Business Briefing</h2>
+    <p style="margin:0 0 20px;font-size:13px;color:#6b7280;">For Australian business operators · Read aloud or skim</p>
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:24px 28px;font-size:15px;color:#1f2937;line-height:1.8;white-space:pre-wrap;font-family:Georgia,serif;">PODCAST_SCRIPT</div>
   </td></tr>
 
   <!-- Footer -->
