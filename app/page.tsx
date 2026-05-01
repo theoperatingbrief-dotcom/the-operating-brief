@@ -47,18 +47,32 @@ export default function Home() {
       >
         {/* Header */}
         <header style={{ marginBottom: "32px" }}>
-          <p
-            style={{
-              fontFamily: "Arial, sans-serif",
-              fontSize: "11px",
-              color: "#888888",
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              marginBottom: "8px",
-            }}
-          >
-            Daily Briefing
-          </p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "8px" }}>
+            <p
+              style={{
+                fontFamily: "Arial, sans-serif",
+                fontSize: "11px",
+                color: "#888888",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                margin: "0",
+              }}
+            >
+              Daily Briefing
+            </p>
+            <a
+              href="/archive"
+              style={{
+                fontFamily: "Arial, sans-serif",
+                fontSize: "12px",
+                color: "#888888",
+                textDecoration: "none",
+                borderBottom: "1px solid #cccccc",
+              }}
+            >
+              View past editions →
+            </a>
+          </div>
           <h1
             style={{
               fontFamily: "Georgia, serif",
