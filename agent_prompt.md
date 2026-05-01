@@ -84,30 +84,28 @@ If fewer than 3 new episodes appeared in the last 48 hours, list however many th
    - URL: <url>
    - SUMMARY: <2 sentences>
 
-### Section E — Daily Podcast Script
-Write a **10–15 minute podcast script** (approximately 1,500–2,000 words) aimed at **Australian business operators**. The tone should be sharp, conversational, and forward-looking — like a smart colleague briefing you over coffee. No fluff.
+### Section E — Daily Business Briefing
+Write a **10–15 minute read** (approximately 1,500–2,000 words) for **Australian business operators**. Tone: sharp, conversational, forward-looking — like a smart colleague briefing you over coffee. No fluff, no jargon, no stage directions.
 
-Structure it exactly as follows:
+Format it as clean flowing prose with four simple bold section headings:
 
-**[INTRO — 1 min]**
-A punchy 3–4 sentence cold open that hooks the listener with the single most important story of the day and why it matters for Australian business.
+**AI & Technology**
+Cover the top AI developments. For each story: what happened, why it matters, what Australian businesses should watch or do. Focus on practical implications — tools, competitive shifts, workforce impacts.
 
-**[SEGMENT 1: AI & Technology — 3–4 mins]**
-Cover the top AI developments from today. For each story, answer: what happened, why it matters, and what Australian businesses should be watching or doing. Focus on practical implications — tools, competitive shifts, workforce impacts.
+**Australian Business & Finance**
+Cover the top Australian business and financial stories. Frame implications for local operators: supply chains, labour markets, regulatory changes, consumer trends.
 
-**[SEGMENT 2: Australian Business & Finance — 3–4 mins]**
-Cover the top Australian business and financial stories. Include any relevant AFR/SMH/ABC business angles. Frame implications for local operators: supply chains, labour markets, regulatory changes, consumer trends.
+**World Markets & Global Business**
+Cover key global market movements and international business stories. Translate for an Australian context — currency, exports, imports, trading partner shifts.
 
-**[SEGMENT 3: World Markets & Global Business — 2–3 mins]**
-Cover the key global market movements and international business stories. Translate them for an Australian context — currency impacts, export/import implications, trading partner developments.
+**The Big Picture**
+Synthesise everything into 1–2 key themes. What should an Australian business operator be thinking about or acting on right now?
 
-**[SEGMENT 4: The Big Picture — 2 mins]**
-Synthesise all three segments into 1–2 key themes for the week. What should an Australian business operator be thinking about or acting on right now?
-
-**[OUTRO — 30 sec]**
-Crisp sign-off. Mention that the full digest with links is in the email below.
-
-Use natural spoken language throughout — short sentences, active voice, contractions. Write it so it can be read aloud without edits.
+Rules:
+- No `[brackets]`, no segment labels, no "welcome to the show" phrasing
+- Short sentences, active voice, contractions
+- Each section flows naturally into the next
+- End with a crisp 2-sentence wrap-up pointing readers to the full digest below
 
 ## Step 4 — Read config
 
