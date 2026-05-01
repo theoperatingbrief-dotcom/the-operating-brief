@@ -15,6 +15,7 @@ from email.utils import parsedate_to_datetime
 import feedparser
 import resend
 from dotenv import load_dotenv
+from supabase import create_client
 
 load_dotenv()
 
@@ -165,9 +166,10 @@ def build_prompt(entries: dict) -> str:
         "=== STORIES ===\n",
     ]
 
+    limits = {"ai": 15, "podcast": 3, "world": 12, "australia": 12}
     for cat, items in entries.items():
         lines.append(f"--- {cat.upper()} ---")
-        for item in items[:25]:
+        for item in items[:limits.get(cat, 12)]:
             lines.append(f"[{item['source']}] {item['title']}")
             lines.append(f"  {item['url']}")
         lines.append("")
@@ -179,7 +181,7 @@ def call_claude(prompt: str) -> str:
     print("  Calling claude CLI...")
     result = subprocess.run(
         ["claude", "-p", prompt],
-        capture_output=True, text=True, timeout=300
+        capture_output=True, text=True, timeout=600
     )
     if result.returncode != 0:
         raise RuntimeError(f"claude CLI error: {result.stderr}")
@@ -228,119 +230,121 @@ def _e(s: str) -> str:
     return html.escape(s or "")
 
 
-def _story_card(i: int, item: dict, link_color: str = "#1d4ed8") -> str:
+def _story_card(i: int, item: dict, link_color: str = "#111") -> str:
     tag = item.get("tag", "")
     tag_html = (
-        f'&nbsp;<span style="display:inline-block;padding:2px 8px;font-size:11px;'
-        f'font-weight:600;border-radius:999px;background:#dbeafe;color:#1e40af;">{_e(tag)}</span>'
+        f'&nbsp;<span style="font-size:11px;color:#888;font-family:Arial,sans-serif;">· {_e(tag)}</span>'
     ) if tag else ""
     return f"""
-<div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #e5e7eb;">
-  <p style="margin:0 0 6px;">
-    <span style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">{i}. {_e(item.get('source',''))}</span>{tag_html}
-  </p>
-  <h3 style="margin:0 0 8px;font-size:17px;font-weight:600;line-height:1.4;">
-    <a href="{_e(item.get('url',''))}" style="color:{link_color};text-decoration:none;">{_e(item.get('title',''))}</a>
-  </h3>
-  <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">{_e(item.get('summary',''))}</p>
-</div>"""
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+  <tr><td style="padding-bottom:16px;border-bottom:1px solid #eee;">
+    <p style="margin:0 0 4px;font-size:11px;color:#888;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:.05em;">{_e(item.get('source',''))}{tag_html}</p>
+    <p style="margin:0 0 6px;font-size:17px;font-weight:700;color:#111;line-height:1.35;font-family:Georgia,serif;"><a href="{_e(item.get('url',''))}" style="color:#111;text-decoration:none;">{_e(item.get('title',''))}</a></p>
+    <p style="margin:0;font-size:14px;color:#444;line-height:1.6;font-family:Arial,sans-serif;">{_e(item.get('summary',''))}</p>
+  </td></tr>
+</table>"""
 
 
 def _podcast_card(item: dict) -> str:
     return f"""
-<div style="margin-bottom:16px;padding:16px;background:#faf5ff;border-radius:8px;border:1px solid #e9d5ff;">
-  <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#7c3aed;">{_e(item.get('show',''))}</p>
-  <h3 style="margin:0 0 8px;font-size:16px;font-weight:600;line-height:1.4;">
-    <a href="{_e(item.get('url',''))}" style="color:#6d28d9;text-decoration:none;">{_e(item.get('title',''))}</a>
-  </h3>
-  <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">{_e(item.get('summary',''))}</p>
-</div>"""
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+  <tr><td style="padding-bottom:16px;border-bottom:1px solid #eee;">
+    <p style="margin:0 0 4px;font-size:11px;color:#888;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:.05em;">{_e(item.get('show',''))}</p>
+    <p style="margin:0 0 6px;font-size:17px;font-weight:700;color:#111;line-height:1.35;font-family:Georgia,serif;"><a href="{_e(item.get('url',''))}" style="color:#111;text-decoration:none;">{_e(item.get('title',''))}</a></p>
+    <p style="margin:0;font-size:14px;color:#444;line-height:1.6;font-family:Arial,sans-serif;">{_e(item.get('summary',''))}</p>
+  </td></tr>
+</table>"""
 
 
 def render_html(d: dict, date_str: str) -> str:
     ai_stories_html = "".join(_story_card(i+1, s) for i, s in enumerate(d["ai_stories"][:5]))
     podcast_html = (
         "".join(_podcast_card(p) for p in d["podcasts"])
-        if d["podcasts"] else '<p style="color:#6b7280;font-size:14px;">No new episodes today.</p>'
+        if d["podcasts"] else '<p style="font-size:14px;color:#888;font-family:Arial,sans-serif;">No new episodes today.</p>'
     )
-    world_stories_html = "".join(_story_card(i+1, s, "#059669") for i, s in enumerate(d["world_stories"][:3]))
-    aus_stories_html = "".join(_story_card(i+1, s, "#dc2626") for i, s in enumerate(d["aus_stories"][:3]))
+    world_stories_html = "".join(_story_card(i+1, s) for i, s in enumerate(d["world_stories"][:3]))
+    aus_stories_html = "".join(_story_card(i+1, s) for i, s in enumerate(d["aus_stories"][:3]))
 
     # Convert **Heading** to styled section headers, then paragraphs
     briefing_raw = d["briefing"]
     briefing_raw = re.sub(
         r'\*\*(.+?)\*\*',
-        r'</p><h3 style="margin:20px 0 8px;font-size:16px;font-weight:700;color:#1e3a8a;border-bottom:1px solid #fde68a;padding-bottom:4px;">\1</h3><p style="margin:0 0 14px;">',
+        r'</p><h3 style="margin:24px 0 8px;font-size:14px;font-weight:700;color:#111;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;border-left:3px solid #111;padding-left:10px;">\1</h3><p style="margin:0 0 16px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">',
         briefing_raw
     )
-    briefing_html = f'<p style="margin:0 0 14px;">{briefing_raw}</p>'
-    briefing_html = briefing_html.replace("\n\n", '</p><p style="margin:0 0 14px;">')
+    briefing_html = f'<p style="margin:0 0 16px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">{briefing_raw}</p>'
+    briefing_html = briefing_html.replace("\n\n", '</p><p style="margin:0 0 16px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">')
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>The Operating Brief – {date_str}</title></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+<body style="margin:0;padding:0;background:#f5f4f0;font-family:Georgia,serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4f0;padding:40px 16px;">
 <tr><td align="center">
-<table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+<table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;background:#fff;">
 
   <!-- Header -->
-  <tr><td bgcolor="#1e3a8a" style="background:#1e3a8a;padding:40px 40px 32px;text-align:center;">
-    <p style="margin:0 0 8px;font-size:11px;color:#93c5fd;text-transform:uppercase;letter-spacing:.18em;">Est. every weekday morning</p>
-    <h1 style="margin:0;font-size:36px;font-weight:800;color:#ffffff;font-family:Georgia,serif;letter-spacing:-.5px;">The Operating Brief</h1>
-    <p style="margin:10px 0 0;font-size:13px;color:#bfdbfe;font-style:italic;">Everything you need to run smarter today &mdash; {date_str}</p>
+  <tr><td style="padding:40px 48px 24px;border-bottom:3px solid #111;">
+    <p style="margin:0 0 6px;font-size:11px;color:#888;letter-spacing:.15em;text-transform:uppercase;font-family:Arial,sans-serif;">{date_str}</p>
+    <h1 style="margin:0;font-size:40px;font-weight:700;color:#111;font-family:Georgia,serif;letter-spacing:-1px;line-height:1;">The Operating Brief</h1>
+    <p style="margin:8px 0 0;font-size:13px;color:#555;font-family:Arial,sans-serif;">For Australian business operators</p>
   </td></tr>
 
   <!-- Briefing -->
-  <tr><td style="padding:32px 40px 28px;">
-    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.12em;">🎙️ Today's Briefing</p>
-    <p style="margin:0 0 20px;font-size:13px;color:#6b7280;">For Australian business operators · Full digest below</p>
-    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:24px 28px;font-size:15px;color:#1f2937;line-height:1.8;font-family:Georgia,serif;">
-      <p style="margin:0 0 14px;">{briefing_html}</p>
-    </div>
+  <tr><td style="padding:32px 48px 0;">
+    <p style="margin:0 0 20px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">Today's Briefing</p>
+    {briefing_html}
   </td></tr>
 
-  <tr><td style="padding:0 40px;"><hr style="border:none;border-top:2px solid #e5e7eb;margin:0;"></td></tr>
+  <tr><td style="padding:0 48px;"><hr style="border:none;border-top:1px solid #ddd;margin:8px 0 32px;"></td></tr>
 
   <!-- AI -->
-  <tr><td style="padding:32px 40px 8px;">
-    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.12em;">🤖 Artificial Intelligence</p>
-    <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">AI Overview</h2>
-    <p style="margin:0 0 24px;font-size:16px;color:#1f2937;line-height:1.7;padding:20px;background:#eff6ff;border-left:4px solid #1d4ed8;border-radius:0 8px 8px 0;">{_e(d['ai_overview'])}</p>
+  <tr><td style="padding:0 48px 32px;">
+    <p style="margin:0 0 20px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">AI Stories</p>
+    <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;border-left:3px solid #111;padding-left:10px;">Overview</h2>
+    <p style="margin:0 0 24px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">{_e(d['ai_overview'])}</p>
     {ai_stories_html}
   </td></tr>
 
-  <tr><td style="padding:0 40px;"><hr style="border:none;border-top:2px solid #e5e7eb;margin:0;"></td></tr>
+  <tr><td style="padding:0 48px;"><hr style="border:none;border-top:1px solid #ddd;margin:0 0 32px;"></td></tr>
 
   <!-- Podcasts -->
-  <tr><td style="padding:32px 40px 8px;">
-    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.12em;">🎙️ Podcast Picks</p>
+  <tr><td style="padding:0 48px 32px;">
+    <p style="margin:0 0 20px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">Podcast Picks</p>
     {podcast_html}
   </td></tr>
 
-  <tr><td style="padding:0 40px;"><hr style="border:none;border-top:2px solid #e5e7eb;margin:0;"></td></tr>
+  <tr><td style="padding:0 48px;"><hr style="border:none;border-top:1px solid #ddd;margin:0 0 32px;"></td></tr>
 
   <!-- World -->
-  <tr><td style="padding:32px 40px 8px;">
-    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:.12em;">🌍 World News</p>
-    <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">Global Snapshot</h2>
-    <p style="margin:0 0 24px;font-size:16px;color:#1f2937;line-height:1.7;padding:20px;background:#ecfdf5;border-left:4px solid #059669;border-radius:0 8px 8px 0;">{_e(d['world_overview'])}</p>
+  <tr><td style="padding:0 48px 32px;">
+    <p style="margin:0 0 20px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">World News</p>
+    <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;border-left:3px solid #111;padding-left:10px;">Global Snapshot</h2>
+    <p style="margin:0 0 24px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">{_e(d['world_overview'])}</p>
     {world_stories_html}
   </td></tr>
 
-  <tr><td style="padding:0 40px;"><hr style="border:none;border-top:2px solid #e5e7eb;margin:0;"></td></tr>
+  <tr><td style="padding:0 48px;"><hr style="border:none;border-top:1px solid #ddd;margin:0 0 32px;"></td></tr>
 
   <!-- Australia -->
-  <tr><td style="padding:32px 40px 8px;">
-    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.12em;">🇦🇺 Australian News</p>
-    <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">Australia Snapshot</h2>
-    <p style="margin:0 0 24px;font-size:16px;color:#1f2937;line-height:1.7;padding:20px;background:#fef2f2;border-left:4px solid #dc2626;border-radius:0 8px 8px 0;">{_e(d['aus_overview'])}</p>
+  <tr><td style="padding:0 48px 32px;">
+    <p style="margin:0 0 20px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">Australian News</p>
+    <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;border-left:3px solid #111;padding-left:10px;">Australia Snapshot</h2>
+    <p style="margin:0 0 24px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">{_e(d['aus_overview'])}</p>
     {aus_stories_html}
   </td></tr>
 
   <!-- Footer -->
-  <tr><td style="padding:24px 40px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
-    <p style="margin:0;font-size:13px;color:#9ca3af;text-align:center;">Your daily AI-powered business briefing</p>
+  <tr><td style="padding:24px 48px;border-top:2px solid #111;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td><p style="margin:0;font-size:12px;color:#888;font-family:Arial,sans-serif;">Your daily AI-powered business briefing</p></td>
+        <td align="right">
+          <a href="mailto:hello@theoperatingbrief.com?subject=Subscribe%20to%20The%20Operating%20Brief" style="font-size:11px;color:#111;font-family:Arial,sans-serif;text-decoration:none;border-bottom:1px solid #111;padding-bottom:1px;margin-right:16px;">Subscribe</a>
+          <a href="mailto:hello@theoperatingbrief.com?subject=Unsubscribe%20from%20The%20Operating%20Brief" style="font-size:11px;color:#888;font-family:Arial,sans-serif;text-decoration:none;border-bottom:1px solid #ccc;padding-bottom:1px;">Unsubscribe</a>
+        </td>
+      </tr>
+    </table>
   </td></tr>
 
 </table></td></tr></table>
@@ -348,23 +352,48 @@ def render_html(d: dict, date_str: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Supabase
+# ---------------------------------------------------------------------------
+def get_supabase():
+    return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+
+
+def load_recipients() -> list[str]:
+    sb = get_supabase()
+    result = sb.table("subscribers").select("email").eq("active", True).execute()
+    emails = [row["email"] for row in result.data]
+    print(f"  {len(emails)} active subscriber(s) from Supabase")
+    return emails
+
+
+def log_send(subject: str, recipient_count: int, resend_id: str) -> None:
+    try:
+        sb = get_supabase()
+        sb.table("send_log").insert({
+            "subject": subject,
+            "recipient_count": recipient_count,
+            "resend_id": resend_id,
+        }).execute()
+    except Exception as ex:
+        print(f"  WARN: could not log send: {ex}")
+
+
+# ---------------------------------------------------------------------------
 # Email
 # ---------------------------------------------------------------------------
-def load_recipients(path: str = "recipients.txt") -> list[str]:
-    with open(path) as f:
-        return [l.strip() for l in f if l.strip() and not l.startswith("#")]
-
-
-def send_email(to: list[str], subject: str, html_body: str) -> None:
+def send_email(to: list[str], subject: str, html_body: str) -> str:
     resend.api_key = os.environ["RESEND_API_KEY"]
     params: resend.Emails.SendParams = {
-        "from": os.environ.get("FROM_EMAIL", "onboarding@resend.dev"),
+        "from": os.environ.get("FROM_EMAIL", "brief@theoperatingbrief.com"),
         "to": to,
+        "reply_to": os.environ.get("REPLY_TO_EMAIL", "hello@theoperatingbrief.com"),
         "subject": subject,
         "html": html_body,
     }
     resp = resend.Emails.send(params)
-    print(f"  Email sent! ID: {resp.get('id', resp)}")
+    resend_id = resp.get("id", str(resp))
+    print(f"  Email sent! ID: {resend_id}")
+    return resend_id
 
 
 # ---------------------------------------------------------------------------
@@ -395,9 +424,13 @@ def main():
 
     print("Loading recipients…")
     recipients = load_recipients()
-    print(f"  Sending to {len(recipients)} recipient(s)")
+    if not recipients:
+        print("No active subscribers. Exiting.")
+        return
 
-    send_email(recipients, subject, html_body)
+    print(f"  Sending to {len(recipients)} recipient(s)")
+    resend_id = send_email(recipients, subject, html_body)
+    log_send(subject, len(recipients), resend_id)
     print("Done! ✅")
 
 
