@@ -6,57 +6,30 @@ You are running the daily news digest. Follow every step in order. Do not skip s
 
 Use WebFetch to retrieve each URL below. Collect every `<item>` or `<entry>` element.
 
-### Lab & Company Blogs
-- https://openai.com/news/rss.xml
-- https://deepmind.google/blog/rss.xml
-- https://research.google/blog/rss
-- https://www.anthropic.com/rss.xml
-- https://ai.meta.com/blog/feed/
-- https://blogs.microsoft.com/ai/feed/
-- https://huggingface.co/blog/feed.xml
-- https://mistral.ai/news/rss
-
-### Tech News
-- https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
+### AI News (fetch all 4)
 - https://techcrunch.com/category/artificial-intelligence/feed/
 - https://venturebeat.com/category/ai/feed/
-- https://www.wired.com/feed/tag/ai/latest/rss
-- https://www.technologyreview.com/feed/
-- https://feeds.arstechnica.com/arstechnica/index
-- https://www.theguardian.com/technology/artificialintelligenceai/rss
-- https://www.fastcompany.com/technology/rss
-
-### Research & Technical
-- https://rss.arxiv.org/rss/cs.AI
-- https://bair.berkeley.edu/blog/feed.xml
-- https://magazine.sebastianraschka.com/feed
-
-### Community & Aggregators
+- https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
 - https://hnrss.org/newest?q=AI&points=50
-- https://www.reddit.com/r/MachineLearning/.rss
 
-### Business & Investment
-- https://aibusiness.com/rss.xml
-- https://siliconangle.com/category/ai/feed
-- https://futurism.com/categories/ai-artificial-intelligence/feed
+### Lab Announcements (fetch all 3)
+- https://openai.com/news/rss.xml
+- https://www.anthropic.com/rss.xml
+- https://huggingface.co/blog/feed.xml
 
-### Podcasts
+### Podcasts (fetch all 2)
 - https://lexfridman.com/feed/podcast/
-- https://changelog.com/practicalai/feed
-- https://feeds.simplecast.com/l2i9YnTd
 - https://twimlai.com/feed/
 
-### World News
+### World News (fetch all 3)
 - https://feeds.bbci.co.uk/news/world/rss.xml
 - https://feeds.reuters.com/reuters/topNews
-- https://feeds.npr.org/1001/rss.xml
 - https://www.theguardian.com/world/rss
 
-### Australian News
+### Australian News (fetch all 3)
 - https://www.abc.net.au/news/feed/51120/rss.xml
 - https://www.smh.com.au/rss/feed.xml
 - https://www.theguardian.com/australia-news/rss
-- https://www.afr.com/rss
 
 For each item extract:
 - `title` (text content of `<title>`)
