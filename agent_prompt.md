@@ -134,6 +134,16 @@ Construct the HTML email below. Replace all placeholders. Escape `&`, `<`, `>` i
     <p style="margin:8px 0 0;font-size:14px;color:#bfdbfe;">DATE</p>
   </td></tr>
 
+  <!-- Podcast Script Section (TOP) -->
+  <tr><td style="padding:32px 40px 28px;">
+    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.12em;">🎙️ Daily Business Briefing</p>
+    <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111827;">Your 10-Minute Podcast Script</h2>
+    <p style="margin:0 0 20px;font-size:13px;color:#6b7280;">For Australian business operators · Read aloud or skim · Full news digest below</p>
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:24px 28px;font-size:15px;color:#1f2937;line-height:1.8;white-space:pre-wrap;font-family:Georgia,serif;">PODCAST_SCRIPT</div>
+  </td></tr>
+
+  <tr><td style="padding:0 40px;"><hr style="border:none;border-top:2px solid #e5e7eb;margin:0;"></td></tr>
+
   <!-- AI Section -->
   <tr><td style="padding:32px 40px 8px;">
     <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.12em;">🤖 Artificial Intelligence</p>
@@ -168,16 +178,6 @@ Construct the HTML email below. Replace all placeholders. Escape `&`, `<`, `>` i
     <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">Australia Snapshot</h2>
     <p style="margin:0 0 24px;font-size:16px;color:#1f2937;line-height:1.7;padding:20px;background:#fef2f2;border-left:4px solid #dc2626;border-radius:0 8px 8px 0;">AUS_OVERVIEW</p>
     AUS_STORIES_HTML
-  </td></tr>
-
-  <tr><td style="padding:0 40px;"><hr style="border:none;border-top:2px solid #e5e7eb;margin:0;"></td></tr>
-
-  <!-- Podcast Script Section -->
-  <tr><td style="padding:32px 40px 8px;">
-    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.12em;">🎙️ Daily Podcast Script</p>
-    <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111827;">Your 10-Minute Business Briefing</h2>
-    <p style="margin:0 0 20px;font-size:13px;color:#6b7280;">For Australian business operators · Read aloud or skim</p>
-    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:24px 28px;font-size:15px;color:#1f2937;line-height:1.8;white-space:pre-wrap;font-family:Georgia,serif;">PODCAST_SCRIPT</div>
   </td></tr>
 
   <!-- Footer -->
