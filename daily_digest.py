@@ -10,6 +10,7 @@ import html
 import difflib
 import subprocess
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
 
 import feedparser
@@ -451,7 +452,8 @@ def main():
     parser.add_argument("--preview", action="store_true", help="Generate email HTML and open in browser without sending")
     args = parser.parse_args()
 
-    date_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
+    aest = ZoneInfo("Australia/Sydney")
+    date_str = datetime.now(aest).strftime("%B %d, %Y")
     subject = f"The Operating Brief – {date_str}"
 
     print("Fetching RSS feeds…")
@@ -483,7 +485,7 @@ def main():
         return
 
     print("Saving edition to archive…")
-    slug = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    slug = datetime.now(aest).strftime("%Y-%m-%d")
     preview_text = digest.get("ai_overview", "")[:120]
     save_edition(slug, subject, preview_text, html_body)
 
