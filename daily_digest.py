@@ -31,20 +31,33 @@ FEEDS = {
         "https://openai.com/news/rss.xml",
         "https://www.anthropic.com/rss.xml",
         "https://huggingface.co/blog/feed.xml",
+        "https://www.technologyreview.com/feed/",
+        "https://arstechnica.com/ai/feed/",
+        "https://www.zdnet.com/topic/artificial-intelligence/rss.xml",
     ],
     "podcast": [
         "https://lexfridman.com/feed/podcast/",
         "https://twimlai.com/feed/",
+        "https://rss.art19.com/how-i-built-this",
+        "https://acquired.libsyn.com/rss",
     ],
     "world": [
         "https://feeds.bbci.co.uk/news/world/rss.xml",
         "https://feeds.reuters.com/reuters/topNews",
         "https://www.theguardian.com/world/rss",
+        "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+        "https://feeds.a.dj.com/rss/RSSWorldNews.xml",
+        "https://feeds.skynews.com/feeds/rss/world.xml",
+        "https://feeds.npr.org/1004/rss.xml",
     ],
     "australia": [
         "https://www.abc.net.au/news/feed/51120/rss.xml",
         "https://www.smh.com.au/rss/feed.xml",
         "https://www.theguardian.com/australia-news/rss",
+        "https://www.afr.com/rss/feed.xml",
+        "https://www.news.com.au/content-feeds/latest-news-national/",
+        "https://7news.com.au/news/australia/rss",
+        "https://www.abc.net.au/news/feed/45910/rss.xml",
     ],
 }
 
@@ -433,6 +446,11 @@ def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[s
 # Main
 # ---------------------------------------------------------------------------
 def main():
+    import argparse, webbrowser
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--preview", action="store_true", help="Generate email HTML and open in browser without sending")
+    args = parser.parse_args()
+
     date_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
     subject = f"The Operating Brief – {date_str}"
 
@@ -454,6 +472,15 @@ def main():
 
     print("Rendering HTML…")
     html_body = render_html(digest, date_str)
+
+    if args.preview:
+        path = os.path.join(os.path.dirname(__file__), "preview_latest.html")
+        with open(path, "w") as f:
+            f.write(html_body)
+        print(f"Preview saved → {path}")
+        webbrowser.open(f"file://{path}")
+        print("Opened in browser. Nothing was sent.")
+        return
 
     print("Saving edition to archive…")
     slug = datetime.now(timezone.utc).strftime("%Y-%m-%d")
