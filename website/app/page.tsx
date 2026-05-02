@@ -288,8 +288,8 @@ export default function Home() {
             Your daily AI-powered business briefing — published weekday mornings.
           </p>
           <p style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#888888", margin: 0 }}>
-            <a href="/privacy" style={{ color: "#888888", marginRight: "16px" }}>Privacy Policy</a>
-            <a href="/terms" style={{ color: "#888888" }}>Terms of Use</a>
+            <a href="/privacy" style={{ color: "#555555", marginRight: "16px", textDecoration: "underline" }}>Privacy Policy</a>
+            <a href="/terms" style={{ color: "#555555", textDecoration: "underline" }}>Terms of Use</a>
           </p>
         </footer>
       </div>
