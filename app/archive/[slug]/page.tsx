@@ -2,19 +2,17 @@ import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const dynamic = "force-dynamic";
 
-export const revalidate = 3600;
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function generateStaticParams() {
-  const { data } = await supabase
-    .from("editions")
-    .select("slug")
-    .eq("published", true);
-  return (data ?? []).map((e: { slug: string }) => ({ slug: e.slug }));
+  return [];
 }
 
 type Props = {
@@ -22,6 +20,7 @@ type Props = {
 };
 
 export default async function EditionPage({ params }: Props) {
+  const supabase = getSupabase();
   const { slug } = await params;
 
   const { data: edition } = await supabase

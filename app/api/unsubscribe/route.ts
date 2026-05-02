@@ -1,10 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const dynamic = "force-dynamic";
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
@@ -21,6 +25,7 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleUnsubscribe(token: string | null) {
+  const supabase = getSupabase();
   if (!token || typeof token !== "string") {
     return NextResponse.json({ error: "Token is required." }, { status: 400 });
   }
