@@ -60,7 +60,7 @@ async function handleUnsubscribe(token: string | null) {
       await resend.emails.send({
         from: "The Operating Brief <brief@theoperatingbrief.com>",
         to: subscriber.email,
-        reply_to: "hello@theoperatingbrief.com",
+        replyTo: "hello@theoperatingbrief.com",
         subject: "You've been unsubscribed — The Operating Brief",
         html: `
           <div style="max-width:620px;margin:0 auto;background:#ffffff;padding:48px;font-family:Arial,sans-serif;">

@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       await resend.emails.send({
         from: "The Operating Brief <brief@theoperatingbrief.com>",
         to: normalizedEmail,
-        reply_to: "hello@theoperatingbrief.com",
+        replyTo: "hello@theoperatingbrief.com",
         subject: "You're in — The Operating Brief",
         html: `
           <div style="max-width:620px;margin:0 auto;background:#ffffff;padding:48px;font-family:Arial,sans-serif;">
