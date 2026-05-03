@@ -30,35 +30,40 @@ export async function POST(request: NextRequest) {
       .eq("email", normalizedEmail)
       .maybeSingle();
 
+    let subNumber: number | null = null;
+
     if (existing) {
       if (existing.active) {
         return NextResponse.json({ error: "Already subscribed." }, { status: 409 });
       }
       // Reactivate previously unsubscribed user
-      const { error } = await supabase
+      const { data: reactivated, error } = await supabase
         .from("subscribers")
         .update({ active: true, name: name?.trim() || null })
-        .eq("id", existing.id);
+        .eq("id", existing.id)
+        .select("sub_number")
+        .single();
       if (error) {
         console.error("Supabase reactivate error:", error);
         return NextResponse.json({ error: "Failed to subscribe. Please try again." }, { status: 500 });
       }
+      subNumber = reactivated?.sub_number ?? null;
     } else {
       // Insert new subscriber
-      const { error } = await supabase.from("subscribers").insert({
+      const { data: inserted, error } = await supabase.from("subscribers").insert({
         email: normalizedEmail,
         name: name?.trim() || null,
         active: true,
         token: crypto.randomUUID(),
-      });
+      }).select("sub_number").single();
       if (error) {
-        // Handle unique constraint violation as duplicate
         if (error.code === "23505") {
           return NextResponse.json({ error: "Already subscribed." }, { status: 409 });
         }
         console.error("Supabase insert error:", error);
         return NextResponse.json({ error: "Failed to subscribe. Please try again." }, { status: 500 });
       }
+      subNumber = inserted?.sub_number ?? null;
     }
 
     // Send welcome email
@@ -79,10 +84,11 @@ export async function POST(request: NextRequest) {
             </p>
             <p style="font-family:Georgia,serif;font-size:16px;color:#222;line-height:1.75;margin:0 0 32px 0;">No noise. No filler. See you tomorrow morning.</p>
             <div style="border-top:2px solid #111;padding-top:16px;">
-              <p style="font-size:12px;color:#888;margin:0;">
+              <p style="font-size:12px;color:#888;margin:0 0 4px 0;">
                 You're receiving this because you subscribed at <a href="https://theoperatingbrief.com" style="color:#888;">theoperatingbrief.com</a>.
                 Not you? <a href="https://theoperatingbrief.com/unsubscribe" style="color:#888;">Unsubscribe here</a>.
               </p>
+              ${subNumber ? `<p style="font-size:11px;color:#aaa;margin:0;">Subscriber #${subNumber}</p>` : ""}
             </div>
           </div>
         `,
