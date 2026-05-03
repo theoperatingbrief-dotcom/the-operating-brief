@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Check if already subscribed
+    // Check if email already exists
     const { data: existing } = await supabase
       .from("subscribers")
       .select("id, active")
@@ -31,20 +31,34 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existing) {
-      return NextResponse.json({ error: "Already subscribed." }, { status: 409 });
-    }
-
-    // Insert new subscriber
-    const { error } = await supabase.from("subscribers").insert({
-      email: normalizedEmail,
-      name: name?.trim() || null,
-      active: true,
-      token: crypto.randomUUID(),
-    });
-
-    if (error) {
-      console.error("Supabase insert error:", error);
-      return NextResponse.json({ error: "Failed to subscribe. Please try again." }, { status: 500 });
+      if (existing.active) {
+        return NextResponse.json({ error: "Already subscribed." }, { status: 409 });
+      }
+      // Reactivate previously unsubscribed user
+      const { error } = await supabase
+        .from("subscribers")
+        .update({ active: true, name: name?.trim() || null })
+        .eq("id", existing.id);
+      if (error) {
+        console.error("Supabase reactivate error:", error);
+        return NextResponse.json({ error: "Failed to subscribe. Please try again." }, { status: 500 });
+      }
+    } else {
+      // Insert new subscriber
+      const { error } = await supabase.from("subscribers").insert({
+        email: normalizedEmail,
+        name: name?.trim() || null,
+        active: true,
+        token: crypto.randomUUID(),
+      });
+      if (error) {
+        // Handle unique constraint violation as duplicate
+        if (error.code === "23505") {
+          return NextResponse.json({ error: "Already subscribed." }, { status: 409 });
+        }
+        console.error("Supabase insert error:", error);
+        return NextResponse.json({ error: "Failed to subscribe. Please try again." }, { status: 500 });
+      }
     }
 
     // Send welcome email
