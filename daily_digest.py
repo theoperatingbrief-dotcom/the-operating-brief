@@ -180,8 +180,8 @@ def build_prompt(entries: dict) -> str:
         "WTMFY_END\n",
 
         "THE_NUMBER_START",
-        "STAT: <a single striking number or statistic from today's stories — make it specific and surprising>",
-        "CONTEXT: <one sentence explaining why this number matters to an Australian worker or household>",
+        "STAT: <the number only — short and punchy, max 4 words. Examples: '$900 million', '1 in 3', '47%', '$2.4 trillion'. NO full sentences. Just the figure.>",
+        "CONTEXT: <one sentence explaining what this number is and why it matters to an Australian worker or household>",
         "THE_NUMBER_END\n",
 
         "SUBJECT_LINE_START",
@@ -274,17 +274,15 @@ def build_prompt(entries: dict) -> str:
 
 
 def call_claude(prompt: str) -> str:
-    print("  Calling claude CLI...")
-    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-    result = subprocess.run(
-        ["claude", "-p", "-"],
-        input=prompt,
-        capture_output=True, text=True, timeout=600,
-        env=env,
+    print("  Calling Anthropic API...")
+    import anthropic
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    message = client.messages.create(
+        model="claude-opus-4-7",
+        max_tokens=8096,
+        messages=[{"role": "user", "content": prompt}],
     )
-    if result.returncode != 0:
-        raise RuntimeError(f"claude CLI error: {result.stderr}")
-    return result.stdout
+    return message.content[0].text
 
 
 # ---------------------------------------------------------------------------
@@ -301,7 +299,7 @@ def _extract_blocks(text: str, tag: str) -> list[dict]:
     for block in blocks:
         item = {}
         for line in block.strip().splitlines():
-            for key in ("TITLE", "SOURCE", "TAG", "URL", "SUMMARY", "SHOW", "STAT", "CONTEXT"):
+            for key in ("TITLE", "SOURCE", "TAG", "URL", "SUMMARY", "SHOW", "STAT", "CONTEXT", "LINE1", "LINE2", "LINE3", "CTA", "HASHTAGS"):
                 if line.startswith(f"{key}:"):
                     item[key.lower()] = line[len(key)+1:].strip()
         if item:
@@ -582,6 +580,91 @@ def save_edition(slug: str, subject: str, preview_text: str, html_body: str) -> 
 
 
 # ---------------------------------------------------------------------------
+# Social image — The Number card
+# ---------------------------------------------------------------------------
+def generate_number_image(stat: str, context: str) -> str | None:
+    if not stat:
+        return None
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        print("  WARN: Pillow not installed — skipping image. Run: pip install Pillow")
+        return None
+
+    W, H = 1080, 1080
+    img = Image.new("RGB", (W, H), color="#111111")
+    draw = ImageDraw.Draw(img)
+
+    font_dir = "/System/Library/Fonts/Supplemental"
+    def font(name, size):
+        path = os.path.join(font_dir, name)
+        try:
+            return ImageFont.truetype(path, size)
+        except Exception:
+            return ImageFont.load_default()
+
+    label_font   = font("Arial.ttf", 22)
+    context_font = font("Georgia.ttf", 34)
+    brand_font   = font("Arial.ttf", 20)
+
+    def wrap_text(text, f, max_width):
+        words = text.split()
+        lines, current = [], []
+        for word in words:
+            test = " ".join(current + [word])
+            if draw.textbbox((0, 0), test, font=f)[2] > max_width:
+                if current:
+                    lines.append(" ".join(current))
+                current = [word]
+            else:
+                current.append(word)
+        if current:
+            lines.append(" ".join(current))
+        return lines
+
+    # Find the largest font size where the stat wraps to 3 lines or fewer
+    stat_size = 160
+    stat_font = font("Georgia Bold.ttf", stat_size)
+    stat_lines = []
+    while stat_size >= 48:
+        stat_lines = wrap_text(stat, stat_font, W - 140)
+        if len(stat_lines) <= 3:
+            break
+        stat_size -= 8
+        stat_font = font("Georgia Bold.ttf", stat_size)
+
+    # Label
+    draw.text((W // 2, 180), "THE NUMBER", font=label_font, fill="#888888", anchor="mm")
+    draw.line([(W // 2 - 60, 216), (W // 2 + 60, 216)], fill="#333333", width=1)
+
+    # Stat — vertically centred as a block
+    stat_line_h = stat_size + 12
+    stat_block_h = len(stat_lines) * stat_line_h
+    stat_y = H // 2 - stat_block_h // 2
+    for line in stat_lines:
+        draw.text((W // 2, stat_y), line, font=stat_font, fill="#ffffff", anchor="mm")
+        stat_y += stat_line_h
+
+    # Context — word-wrap below stat block
+    context_lines = wrap_text(context, context_font, W - 140)
+    y = H // 2 + stat_block_h // 2 + 32
+    for line in context_lines:
+        draw.text((W // 2, y), line, font=context_font, fill="#cccccc", anchor="mm")
+        y += 52
+
+    # Branding
+    draw.text((W // 2, H - 100), "theoperatingbrief.com", font=brand_font, fill="#555555", anchor="mm")
+
+    images_dir = os.path.join(os.path.dirname(__file__), "social_images")
+    os.makedirs(images_dir, exist_ok=True)
+    slug = datetime.now(ZoneInfo("Australia/Sydney")).strftime("%Y-%m-%d")
+    image_path = os.path.join(images_dir, f"{slug}_the_number.png")
+    img.save(image_path, "PNG")
+    print(f"  Number image saved → {image_path}")
+    return image_path
+
+
+# ---------------------------------------------------------------------------
 # PDF export
 # ---------------------------------------------------------------------------
 def generate_pdf(html_body: str) -> str | None:
@@ -748,6 +831,32 @@ def main():
         f.write(f"{digest.get('social_cta', '')}\n\n")
         f.write(f"{digest.get('social_hashtags', '')}\n")
     print(f"  Social caption saved → {social_path}")
+
+    print("Generating Number image…")
+    image_path = generate_number_image(digest.get("the_number_stat", ""), digest.get("the_number_context", ""))
+
+    if image_path and os.path.exists(image_path):
+        import base64
+        with open(image_path, "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode()
+        caption_lines = "\n".join(filter(None, [
+            digest.get("social_line1", ""),
+            digest.get("social_line2", ""),
+            digest.get("social_line3", ""),
+            digest.get("social_cta", ""),
+            digest.get("social_hashtags", ""),
+        ]))
+        social_panel = f"""
+<div style="background:#222;padding:40px 0;margin-top:0;">
+  <div style="max-width:620px;margin:0 auto;padding:0 16px;">
+    <p style="font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#666;font-family:Arial,sans-serif;margin:0 0 20px;">Preview only — Social Assets</p>
+    <img src="data:image/png;base64,{img_b64}" style="width:100%;max-width:400px;display:block;margin:0 auto 24px;" alt="The Number card">
+    <pre style="font-family:Arial,sans-serif;font-size:13px;color:#ccc;line-height:1.8;white-space:pre-wrap;margin:0;background:#333;padding:20px;">{html.escape(caption_lines)}</pre>
+  </div>
+</div>"""
+        preview_html = html_body.replace("</body>", social_panel + "</body>")
+        with open(preview_path, "w") as f:
+            f.write(preview_html)
 
     print("\n── Quality Check ───────────────────────────────")
     warnings = quality_check(digest, entries)
