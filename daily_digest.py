@@ -6,6 +6,7 @@ Sends via Resend. Run locally or via launchd at 7am weekdays.
 """
 import os
 import re
+import sys
 import html
 import difflib
 import subprocess
@@ -39,8 +40,11 @@ FEEDS = {
     "podcast": [
         "https://lexfridman.com/feed/podcast/",
         "https://twimlai.com/feed/",
-        "https://rss.art19.com/how-i-built-this",
-        "https://acquired.libsyn.com/rss",
+        "https://anchor.fm/s/f7cac464/podcast/rss",   # The AI Daily Brief
+        "https://feeds.megaphone.fm/nopriors",         # No Priors
+        "https://feeds.megaphone.fm/RINTP3108857801",  # The Cognitive Revolution
+        "https://api.substack.com/feed/podcast/1084089.rss",  # Latent Space
+        "https://changelog.com/practicalai/feed",     # Practical AI
     ],
     "world": [
         "https://feeds.bbci.co.uk/news/world/rss.xml",
@@ -69,12 +73,14 @@ SIMILARITY_THRESHOLD = 0.75
 # Fetch & deduplicate
 # ---------------------------------------------------------------------------
 def fetch_entries(feeds: dict) -> dict:
-    cutoff_24 = datetime.now(timezone.utc) - timedelta(hours=24)
-    cutoff_48 = datetime.now(timezone.utc) - timedelta(hours=48)
+    is_monday = datetime.now(timezone.utc).weekday() == 0
+    base_hours = 72 if is_monday else 24
+    cutoff_base = datetime.now(timezone.utc) - timedelta(hours=base_hours)
+    cutoff_podcast = datetime.now(timezone.utc) - timedelta(hours=max(base_hours, 48))
     results = {k: [] for k in feeds}
 
     for cat, urls in feeds.items():
-        cutoff = cutoff_48 if cat == "podcast" else cutoff_24
+        cutoff = cutoff_podcast if cat == "podcast" else cutoff_base
         for url in urls:
             try:
                 feed = feedparser.parse(url)
@@ -193,9 +199,12 @@ def build_prompt(entries: dict) -> str:
 
 def call_claude(prompt: str) -> str:
     print("  Calling claude CLI...")
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     result = subprocess.run(
-        ["claude", "-p", prompt],
-        capture_output=True, text=True, timeout=600
+        ["claude", "-p", "-"],
+        input=prompt,
+        capture_output=True, text=True, timeout=600,
+        env=env,
     )
     if result.returncode != 0:
         raise RuntimeError(f"claude CLI error: {result.stderr}")
@@ -350,6 +359,9 @@ def render_html(d: dict, date_str: str) -> str:
 
   <!-- Footer -->
   <tr><td style="padding:24px 48px;border-top:2px solid #111;">
+    <p style="margin:0 0 16px;font-size:13px;color:#222;font-family:Georgia,serif;line-height:1.6;">
+      Thoughts on today's edition? Hit reply — we read every response.
+    </p>
     <table width="100%" cellpadding="0" cellspacing="0">
       <tr>
         <td><p style="margin:0;font-size:12px;color:#888;font-family:Arial,sans-serif;">Your daily AI-powered business briefing</p></td>
@@ -444,17 +456,61 @@ def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[s
 
 
 # ---------------------------------------------------------------------------
+# Quality checks
+# ---------------------------------------------------------------------------
+def quality_check(digest: dict, entries: dict) -> list[str]:
+    warnings = []
+    if not digest.get("podcasts"):
+        warnings.append("⚠️  No podcast episodes found")
+    if not digest.get("ai_stories"):
+        warnings.append("⚠️  No AI stories parsed")
+    if not digest.get("world_stories"):
+        warnings.append("⚠️  No world stories parsed")
+    if not digest.get("aus_stories"):
+        warnings.append("⚠️  No Australian stories parsed")
+    if not digest.get("briefing"):
+        warnings.append("⚠️  Main briefing is missing")
+    if len(digest.get("briefing", "")) < 200:
+        warnings.append("⚠️  Main briefing looks too short")
+    if not digest.get("ai_overview"):
+        warnings.append("⚠️  AI overview is missing")
+    return warnings
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
     import argparse, webbrowser
     parser = argparse.ArgumentParser()
-    parser.add_argument("--preview", action="store_true", help="Generate email HTML and open in browser without sending")
+    parser.add_argument("--preview", action="store_true", help="Generate email, run quality checks, open in browser. Does not send.")
+    parser.add_argument("--send", action="store_true", help="Send the last generated preview to all subscribers without regenerating.")
     args = parser.parse_args()
 
     aest = ZoneInfo("Australia/Sydney")
     date_str = datetime.now(aest).strftime("%B %d, %Y")
     subject = f"The Operating Brief – {date_str}"
+    preview_path = os.path.join(os.path.dirname(__file__), "preview_latest.html")
+
+    if args.send:
+        if not os.path.exists(preview_path):
+            print("No preview found. Run --preview first.")
+            return
+        with open(preview_path) as f:
+            html_body = f.read()
+        print("Saving edition to archive…")
+        slug = datetime.now(aest).strftime("%Y-%m-%d")
+        save_edition(slug, subject, "", html_body)
+        print("Loading recipients…")
+        recipients = load_recipients()
+        if not recipients:
+            print("No active subscribers. Exiting.")
+            return
+        print(f"  Sending to {len(recipients)} recipient(s)")
+        resend_ids = send_to_all(recipients, subject, html_body)
+        log_send(subject, len(recipients), resend_ids[0] if resend_ids else "")
+        print("Done! ✅")
+        return
 
     print("Fetching RSS feeds…")
     entries = fetch_entries(FEEDS)
@@ -475,14 +531,30 @@ def main():
     print("Rendering HTML…")
     html_body = render_html(digest, date_str)
 
+    with open(preview_path, "w") as f:
+        f.write(html_body)
+
+    print("\n── Quality Check ───────────────────────────────")
+    warnings = quality_check(digest, entries)
+    if warnings:
+        for w in warnings:
+            print(w)
+    else:
+        print("✅  All checks passed")
+    print("────────────────────────────────────────────────\n")
+
     if args.preview:
-        path = os.path.join(os.path.dirname(__file__), "preview_latest.html")
-        with open(path, "w") as f:
-            f.write(html_body)
-        print(f"Preview saved → {path}")
-        webbrowser.open(f"file://{path}")
-        print("Opened in browser. Nothing was sent.")
-        return
+        print(f"Preview saved → {preview_path}")
+        webbrowser.open(f"file://{preview_path}")
+        if not sys.stdin.isatty():
+            print("Running unattended — preview saved. Run 'python3 daily_digest.py --send' to send.")
+            return
+        print("\nReview the email in your browser, then come back here.\n")
+        answer = input("Send to subscribers? (y/n): ").strip().lower()
+        if answer != "y":
+            print("Not sent. Run 'python3 daily_digest.py --send' whenever you're ready.")
+            return
+        args.send = True
 
     print("Saving edition to archive…")
     slug = datetime.now(aest).strftime("%Y-%m-%d")

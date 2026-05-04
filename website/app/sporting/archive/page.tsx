@@ -1,0 +1,113 @@
+import { createClient } from "@supabase/supabase-js";
+import Link from "next/link";
+
+export const dynamic = "force-dynamic";
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
+type Edition = {
+  id: string;
+  slug: string;
+  subject: string;
+  preview_text: string;
+  created_at: string;
+};
+
+function formatDate(slug: string): string {
+  const datePart = slug.slice(0, 10);
+  const [year, month, day] = datePart.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  return d.toLocaleDateString("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+export const revalidate = 60;
+
+export default async function SportingArchivePage() {
+  const supabase = getSupabase();
+  const { data: editions, error } = await supabase
+    .from("sports_editions")
+    .select("id, slug, subject, preview_text, created_at")
+    .order("created_at", { ascending: false });
+
+  return (
+    <div style={{ backgroundColor: "#f5f4f0", minHeight: "100vh", padding: "40px 16px" }}>
+      <div style={{ maxWidth: "620px", margin: "0 auto", backgroundColor: "#ffffff", padding: "48px" }}>
+
+        {/* Header */}
+        <header style={{ marginBottom: "32px" }}>
+          <p style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#888888", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "8px" }}>
+            Weekend Briefing
+          </p>
+          <h1 style={{ fontFamily: "Georgia, serif", fontSize: "40px", fontWeight: 700, color: "#111111", lineHeight: 1.1, paddingBottom: "16px", borderBottom: "3px solid #111111", margin: "0" }}>
+            The Sporting Brief
+          </h1>
+          <p style={{ fontFamily: "Arial, sans-serif", fontSize: "13px", color: "#555555", marginTop: "10px", marginBottom: "0" }}>
+            NRL · AFL · Football · F1 · NBA · Golf & more
+          </p>
+        </header>
+
+        {/* Archive heading */}
+        <div style={{ marginBottom: "32px" }}>
+          <h2 style={{ margin: "0 0 8px", fontFamily: "Arial, sans-serif", fontSize: "14px", fontWeight: 700, color: "#111111", textTransform: "uppercase", letterSpacing: "0.08em", borderLeft: "3px solid #111111", paddingLeft: "10px" }}>
+            Past Editions
+          </h2>
+          <p style={{ fontFamily: "Arial, sans-serif", fontSize: "13px", color: "#888888", marginLeft: "13px" }}>
+            <Link href="/sporting" style={{ color: "#888888", textDecoration: "none", borderBottom: "1px solid #cccccc" }}>
+              ← Subscribe
+            </Link>
+          </p>
+        </div>
+
+        <div style={{ borderTop: "1px solid #dddddd", marginBottom: "24px" }} />
+
+        {error && (
+          <p style={{ fontFamily: "Arial, sans-serif", fontSize: "14px", color: "#888888" }}>
+            Could not load editions.
+          </p>
+        )}
+
+        {!error && (!editions || editions.length === 0) && (
+          <p style={{ fontFamily: "Arial, sans-serif", fontSize: "14px", color: "#888888" }}>
+            No past editions yet.
+          </p>
+        )}
+
+        {editions && editions.map((edition: Edition) => (
+          <div key={edition.id}>
+            <Link href={`/sporting/archive/${edition.slug}`} style={{ textDecoration: "none", display: "block" }}>
+              <div style={{ padding: "20px 0", borderBottom: "1px solid #eeeeee", cursor: "pointer" }}>
+                <p style={{ margin: "0 0 4px", fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#888888", textTransform: "uppercase", letterSpacing: "0.12em" }}>
+                  {formatDate(edition.slug)}
+                </p>
+                <h3 style={{ margin: "0 0 6px", fontFamily: "Georgia, serif", fontSize: "18px", fontWeight: 700, color: "#111111", lineHeight: 1.3 }}>
+                  {edition.subject}
+                </h3>
+                <p style={{ margin: "0", fontFamily: "Arial, sans-serif", fontSize: "14px", color: "#555555", lineHeight: 1.5 }}>
+                  {edition.preview_text}
+                </p>
+              </div>
+            </Link>
+          </div>
+        ))}
+
+        {/* Footer */}
+        <footer style={{ marginTop: "40px", borderTop: "2px solid #111111", paddingTop: "16px" }}>
+          <p style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#888888" }}>
+            Your weekend AI-powered sports briefing.
+          </p>
+        </footer>
+      </div>
+    </div>
+  );
+}
