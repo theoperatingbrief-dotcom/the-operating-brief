@@ -14,16 +14,18 @@ type Edition = {
   id: number;
   slug: string;
   subject: string;
-  sent_at: string;
   preview_text: string;
 };
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
+function formatDate(slug: string): string {
+  // Slug is YYYY-MM-DD or YYYY-MM-DD-mode — parse the date portion only
+  const datePart = slug.slice(0, 10);
+  const [year, month, day] = datePart.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day));
   return d.toLocaleDateString("en-AU", {
     weekday: "long",
-    month: "long",
     day: "numeric",
+    month: "long",
     year: "numeric",
     timeZone: "UTC",
   });
@@ -35,7 +37,7 @@ export default async function ArchivePage() {
   const supabase = getSupabase();
   const { data: editions, error } = await supabase
     .from("editions")
-    .select("id, slug, subject, sent_at, preview_text")
+    .select("id, slug, subject, preview_text")
     .eq("published", true)
     .order("sent_at", { ascending: false });
 
@@ -162,7 +164,7 @@ export default async function ArchivePage() {
                     letterSpacing: "0.12em",
                   }}
                 >
-                  {formatDate(edition.sent_at)}
+                  {formatDate(edition.slug)}
                 </p>
                 <h3
                   style={{
