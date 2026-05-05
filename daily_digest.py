@@ -64,6 +64,8 @@ FEEDS = {
         "https://www.news.com.au/content-feeds/latest-news-national/",
         "https://7news.com.au/news/australia/rss",
         "https://www.abc.net.au/news/feed/45910/rss.xml",
+        "https://www.rba.gov.au/rss/rss-cb-speeches.xml",        # RBA speeches
+        "https://www.rba.gov.au/rss/rss-cb-media-releases.xml",  # RBA media releases
     ],
 }
 
@@ -278,7 +280,7 @@ def call_claude(prompt: str) -> str:
     import anthropic
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     message = client.messages.create(
-        model="claude-opus-4-7",
+        model="claude-sonnet-4-6",
         max_tokens=8096,
         messages=[{"role": "user", "content": prompt}],
     )
