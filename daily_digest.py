@@ -276,15 +276,17 @@ def build_prompt(entries: dict) -> str:
 
 
 def call_claude(prompt: str) -> str:
-    print("  Calling Anthropic API...")
-    import anthropic
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=8096,
-        messages=[{"role": "user", "content": prompt}],
+    print("  Calling claude CLI...")
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    result = subprocess.run(
+        ["claude", "-p", "-"],
+        input=prompt,
+        capture_output=True, text=True, timeout=600,
+        env=env,
     )
-    return message.content[0].text
+    if result.returncode != 0:
+        raise RuntimeError(f"claude CLI error: {result.stderr}")
+    return result.stdout
 
 
 # ---------------------------------------------------------------------------
