@@ -331,7 +331,7 @@ def build_prompt(entries: dict, market_data: str, movers_text: str) -> str:
         "5. Australian perspective — lead with ASX implications of overnight moves.\n",
 
         "BRIEFING_START",
-        "Write a 180-word pre-market opening note. Australian investors are the audience — frame everything through an ASX lens.",
+        "Write a 300-word pre-market opening note. Australian investors are the audience — frame everything through an ASX lens.",
         "Paragraph 1 (2-3 sentences): ASX implied direction at open — what happened overnight in the US and how it flows through to Australian stocks and sectors. Use specific index levels.",
         "Paragraph 2 (2-3 sentences): The dominant Australian or macro theme right now (RBA, ABS data, commodity moves, Chinese demand, Australian earnings). Be specific — name the event, number, or company.",
         "Paragraph 3 (1-2 sentences): Two or three specific ASX stocks or sectors to watch at open and the precise reason why.",
