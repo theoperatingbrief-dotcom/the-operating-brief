@@ -865,6 +865,23 @@ def compile_digest(mode: str, days_back: int = 14) -> tuple[dict, dict]:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+def _do_send(html_body: str, subject: str, now_aest, mode: str) -> None:
+    slug = now_aest.strftime("%Y-%m-%d") + f"-{mode}"
+    edition_label = "Week Preview" if mode == "preview" else "Weekend Wrap"
+    preview_text = ""
+    print("Saving edition to archive…")
+    save_edition(slug, subject, preview_text, html_body)
+    print("Loading recipients…")
+    recipients = load_recipients()
+    if not recipients:
+        print("No active subscribers. Exiting.")
+        return
+    print(f"  Sending to {len(recipients)} recipient(s)")
+    resend_ids = send_to_all(recipients, subject, html_body)
+    log_send(subject, len(recipients), resend_ids[0] if resend_ids else "")
+    print("Done! ✅")
+
+
 def main():
     import argparse, webbrowser
     parser = argparse.ArgumentParser()
@@ -873,7 +890,9 @@ def main():
     parser.add_argument("--backfill", action="store_true",
                         help="Use with --ingest: fetch 14 days of RSS articles instead of the normal window.")
     parser.add_argument("--preview", action="store_true",
-                        help="Compile from DB and open in browser — no email sent.")
+                        help="Ingest, compile, open in browser, then prompt to send.")
+    parser.add_argument("--send", action="store_true",
+                        help="Send the last saved preview without regenerating.")
     parser.add_argument("--mode", choices=["wrap", "preview"], default=None,
                         help="Edition mode: 'wrap' (results) or 'preview' (week ahead). Auto-detected if not set.")
     args = parser.parse_args()
@@ -890,47 +909,47 @@ def main():
     edition_label = "Week Preview" if mode == "preview" else "Weekend Wrap"
     print(f"Mode: {edition_label}")
 
-    # --- INGEST MODE ---
+    preview_path = os.path.join(os.path.dirname(__file__), "preview_sports.html")
+    subject = f"The Sporting Brief – {edition_label} – {date_str}"
+
+    # --- INGEST ONLY ---
     if args.ingest:
         run_ingest(mode, backfill=getattr(args, "backfill", False))
         return
 
-    # Always ingest fresh data before compiling
+    # --- SEND SAVED PREVIEW ---
+    if args.send:
+        if not os.path.exists(preview_path):
+            print("No preview found. Run --preview first.")
+            return
+        with open(preview_path) as f:
+            html_body = f.read()
+        _do_send(html_body, subject, now_aest, mode)
+        return
+
+    # --- INGEST + COMPILE + PREVIEW (then optionally send) ---
     print("Ingesting fresh data…")
     run_ingest(mode, backfill=False)
 
-    # --- COMPILE / SEND MODE ---
-    subject = f"The Sporting Brief – {edition_label} – {date_str}"
     days_back = 7 if mode == "wrap" else 5
     digest, scores_structured = compile_digest(mode, days_back=days_back)
 
     print("Rendering HTML…")
     html_body = render_html(digest, date_str, edition_label, scores=scores_structured)
 
+    with open(preview_path, "w") as f:
+        f.write(html_body)
+    print(f"Preview saved → {preview_path}")
+    webbrowser.open(f"file://{preview_path}")
+
     if args.preview:
-        path = os.path.join(os.path.dirname(__file__), "preview_sports.html")
-        with open(path, "w") as f:
-            f.write(html_body)
-        print(f"Preview saved → {path}")
-        webbrowser.open(f"file://{path}")
-        print("Opened in browser. Nothing was sent.")
-        return
+        print("\nReview the email, then type y to send.\n")
+        answer = input("Send to subscribers now? (y/n): ").strip().lower()
+        if answer != "y":
+            print("Not sent. Run --send when ready.")
+            return
 
-    print("Saving edition to archive…")
-    slug = now_aest.strftime("%Y-%m-%d") + f"-{mode}"
-    preview_text = digest.get("briefing", "")[:120]
-    save_edition(slug, subject, preview_text, html_body)
-
-    print("Loading recipients…")
-    recipients = load_recipients()
-    if not recipients:
-        print("No active subscribers. Exiting.")
-        return
-
-    print(f"  Sending to {len(recipients)} recipient(s)")
-    resend_ids = send_to_all(recipients, subject, html_body)
-    log_send(subject, len(recipients), resend_ids[0] if resend_ids else "")
-    print("Done! ✅")
+    _do_send(html_body, subject, now_aest, mode)
 
 
 if __name__ == "__main__":

@@ -714,9 +714,9 @@ def save_edition(slug: str, subject: str, preview_text: str, html_body: str) -> 
 def send_email(to: list[str], subject: str, html_body: str) -> str:
     resend.api_key = os.environ["RESEND_API_KEY"]
     params: resend.Emails.SendParams = {
-        "from": os.environ.get("MARKETS_FROM_EMAIL", "brief@themarketsbrief.com"),
+        "from": os.environ.get("MARKETS_FROM_EMAIL", "brief@theoperatingbrief.com"),
         "to": to,
-        "reply_to": os.environ.get("MARKETS_REPLY_TO_EMAIL", "hello@themarketsbrief.com"),
+        "reply_to": os.environ.get("MARKETS_REPLY_TO_EMAIL", "hello@theoperatingbrief.com"),
         "subject": subject,
         "html": html_body,
     }
@@ -751,13 +751,42 @@ def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[s
 def main():
     import argparse, webbrowser
     parser = argparse.ArgumentParser(description="The Markets Brief — daily ASX pre-market digest")
-    parser.add_argument("--preview", action="store_true", help="Generate HTML and open in browser without sending")
+    parser.add_argument("--preview", action="store_true", help="Generate HTML and open in browser without sending.")
+    parser.add_argument("--send", action="store_true", help="Send the last generated preview to all subscribers without regenerating.")
     args = parser.parse_args()
 
     aest = ZoneInfo("Australia/Sydney")
     now_aest = datetime.now(aest)
     date_str = now_aest.strftime("%B %d, %Y")
     subject_default = f"The Markets Brief – {date_str}"
+    preview_path = os.path.join(os.path.dirname(__file__), "preview_markets.html")
+    subject_path = os.path.join(os.path.dirname(__file__), "preview_markets_subject.txt")
+
+    # --send: read saved preview and send it exactly as reviewed
+    if args.send:
+        if not os.path.exists(preview_path):
+            print("No preview found. Run --preview first.")
+            return
+        with open(preview_path) as f:
+            html_body = f.read()
+        subject = subject_default
+        if os.path.exists(subject_path):
+            with open(subject_path) as f:
+                subject = f.read().strip() or subject
+        print(f"  Subject: {subject}")
+        print("Saving edition to archive…")
+        slug = now_aest.strftime("%Y-%m-%d")
+        save_edition(slug, subject, "", html_body)
+        print("Loading recipients…")
+        recipients = load_recipients()
+        if not recipients:
+            print("No active subscribers. Exiting.")
+            return
+        print(f"  Sending to {len(recipients)} recipient(s)")
+        resend_ids = send_to_all(recipients, subject, html_body)
+        log_send(subject, len(recipients), resend_ids[0] if resend_ids else "")
+        print("Done! ✅")
+        return
 
     print("Fetching market data…")
     market_data_text, market_data_structured = fetch_market_data()
@@ -793,14 +822,21 @@ def main():
     print("Rendering HTML…")
     html_body = render_html(digest, date_str, market_data_structured, gainers, losers)
 
+    # Always save preview file so --send uses exactly what was reviewed
+    with open(preview_path, "w") as f:
+        f.write(html_body)
+    with open(subject_path, "w") as f:
+        f.write(subject)
+
     if args.preview:
-        path = os.path.join(os.path.dirname(__file__), "preview_markets.html")
-        with open(path, "w") as f:
-            f.write(html_body)
-        print(f"Preview saved → {path}")
-        webbrowser.open(f"file://{path}")
-        print("Opened in browser. Nothing was sent.")
-        return
+        print(f"Preview saved → {preview_path}")
+        webbrowser.open(f"file://{preview_path}")
+        print("\nReview the email, then type y to send.\n")
+        answer = input("Send to subscribers now? (y/n): ").strip().lower()
+        if answer != "y":
+            print("Not sent. Run --send when ready.")
+            return
+        args.send = True
 
     print("Saving edition to archive…")
     slug = now_aest.strftime("%Y-%m-%d")
