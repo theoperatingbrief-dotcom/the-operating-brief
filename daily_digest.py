@@ -522,7 +522,7 @@ def render_html(d: dict, date_str: str) -> str:
             <td width="4%"></td>
             <td width="48%" style="vertical-align:top;">
               <p style="margin:0 0 2px;font-size:13px;font-weight:700;color:#111;font-family:Arial,sans-serif;"><a href="https://theoperatingbrief.com/sporting" style="color:#111;text-decoration:none;">The Sporting Brief</a></p>
-              <p style="margin:0;font-size:12px;color:#666;font-family:Arial,sans-serif;line-height:1.5;">Twice weekly — NRL, AFL, football, F1, NBA, golf and more. Week preview Mondays, weekend wrap Thursdays.</p>
+              <p style="margin:0;font-size:12px;color:#666;font-family:Arial,sans-serif;line-height:1.5;">Twice weekly — NRL, AFL, football, F1, NBA, golf and more. Weekend preview Thursdays, results wrap Mondays.</p>
             </td>
           </tr>
         </table>
