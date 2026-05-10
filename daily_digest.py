@@ -508,6 +508,28 @@ def render_html(d: dict, date_str: str) -> str:
     </table>
   </td></tr>
 
+  <!-- Also from us -->
+  <tr><td style="padding:0 48px 32px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4f0;border-left:3px solid #111;">
+      <tr><td style="padding:20px 24px;">
+        <p style="margin:0 0 12px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">Also from The Operating Brief</p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td width="48%" style="vertical-align:top;padding-right:12px;">
+              <p style="margin:0 0 2px;font-size:13px;font-weight:700;color:#111;font-family:Arial,sans-serif;"><a href="https://theoperatingbrief.com/markets" style="color:#111;text-decoration:none;">The Markets Brief</a></p>
+              <p style="margin:0;font-size:12px;color:#666;font-family:Arial,sans-serif;line-height:1.5;">Daily ASX pre-market briefing — live market data, overnight moves, and the macro stories that matter. In your inbox by 7:30am.</p>
+            </td>
+            <td width="4%"></td>
+            <td width="48%" style="vertical-align:top;">
+              <p style="margin:0 0 2px;font-size:13px;font-weight:700;color:#111;font-family:Arial,sans-serif;"><a href="https://theoperatingbrief.com/sporting" style="color:#111;text-decoration:none;">The Sporting Brief</a></p>
+              <p style="margin:0;font-size:12px;color:#666;font-family:Arial,sans-serif;line-height:1.5;">Twice weekly — NRL, AFL, football, F1, NBA, golf and more. Week preview Mondays, weekend wrap Thursdays.</p>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+  </td></tr>
+
   <!-- Footer -->
   <tr><td style="padding:24px 48px;border-top:2px solid #111;">
     <p style="margin:0 0 16px;font-size:14px;color:#222;font-family:Georgia,serif;line-height:1.7;">
