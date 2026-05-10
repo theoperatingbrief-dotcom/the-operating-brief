@@ -35,6 +35,12 @@ export default function Home() {
     }
   }
 
+  const navLinks = [
+    { label: "The Operating Brief", href: "/" },
+    { label: "The Sporting Brief", href: "/sporting" },
+    { label: "The Markets Brief", href: "/markets" },
+  ];
+
   return (
     <div style={{ backgroundColor: "#f5f4f0", minHeight: "100vh", padding: "40px 16px" }}>
       <div
@@ -45,6 +51,34 @@ export default function Home() {
           padding: "48px",
         }}
       >
+        {/* Cross-brief nav */}
+        <nav style={{ marginBottom: "32px", paddingBottom: "16px", borderBottom: "1px solid #eeeeee" }}>
+          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+            {navLinks.map((link) => {
+              const active = link.href === "/";
+              return (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  style={{
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "11px",
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: active ? "#111111" : "#999999",
+                    textDecoration: "none",
+                    fontWeight: active ? 700 : 400,
+                    borderBottom: active ? "2px solid #111111" : "none",
+                    paddingBottom: "2px",
+                  }}
+                >
+                  {link.label}
+                </a>
+              );
+            })}
+          </div>
+        </nav>
+
         {/* Header */}
         <header style={{ marginBottom: "32px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "8px" }}>

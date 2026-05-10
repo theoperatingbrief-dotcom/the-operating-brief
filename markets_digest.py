@@ -722,8 +722,8 @@ def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[s
     for sub in subscribers:
         token = sub.get("token", "")
         email = sub["email"]
-        unsub_url = f"https://themarketsbrief.com/unsubscribe?token={token}"
-        sub_url = "https://themarketsbrief.com"
+        unsub_url = f"https://theoperatingbrief.com/markets/unsubscribe?token={token}"
+        sub_url = "https://theoperatingbrief.com/markets"
         personalised = base_html.replace(
             'href="mailto:hello@themarketsbrief.com?subject=Subscribe%20to%20The%20Markets%20Brief"',
             f'href="{sub_url}"'

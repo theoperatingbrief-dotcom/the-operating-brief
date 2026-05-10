@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 
-export default function SportingHome() {
+const NAV_LINKS = [
+  { label: "The Operating Brief", href: "/" },
+  { label: "The Sporting Brief", href: "/sporting" },
+  { label: "The Markets Brief", href: "/markets" },
+];
+
+export default function MarketsHome() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error" | "duplicate">("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -13,7 +19,7 @@ export default function SportingHome() {
     setErrorMessage("");
 
     try {
-      const res = await fetch("/api/sporting/subscribe", {
+      const res = await fetch("/api/markets/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -34,12 +40,6 @@ export default function SportingHome() {
     }
   }
 
-  const navLinks = [
-    { label: "The Operating Brief", href: "/" },
-    { label: "The Sporting Brief", href: "/sporting" },
-    { label: "The Markets Brief", href: "/markets" },
-  ];
-
   return (
     <div style={{ backgroundColor: "#f5f4f0", minHeight: "100vh", padding: "40px 16px" }}>
       <div style={{ maxWidth: "620px", margin: "0 auto", backgroundColor: "#ffffff", padding: "48px" }}>
@@ -47,8 +47,8 @@ export default function SportingHome() {
         {/* Cross-brief nav */}
         <nav style={{ marginBottom: "32px", paddingBottom: "16px", borderBottom: "1px solid #eeeeee" }}>
           <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-            {navLinks.map((link) => {
-              const active = link.href === "/sporting";
+            {NAV_LINKS.map((link) => {
+              const active = link.href === "/markets";
               return (
                 <a
                   key={link.href}
@@ -76,27 +76,27 @@ export default function SportingHome() {
         <header style={{ marginBottom: "32px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "8px" }}>
             <p style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#888888", letterSpacing: "0.12em", textTransform: "uppercase", margin: "0" }}>
-              Weekend Briefing
+              Daily · ASX Pre-Market
             </p>
-            <a href="/sporting/archive" style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#888888", textDecoration: "none", borderBottom: "1px solid #cccccc" }}>
+            <a href="/markets/archive" style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#888888", textDecoration: "none", borderBottom: "1px solid #cccccc" }}>
               View past editions →
             </a>
           </div>
           <h1 style={{ fontFamily: "Georgia, serif", fontSize: "40px", fontWeight: 700, color: "#111111", lineHeight: 1.1, paddingBottom: "16px", borderBottom: "3px solid #111111", margin: "0" }}>
-            The Sporting Brief
+            The Markets Brief
           </h1>
           <p style={{ fontFamily: "Arial, sans-serif", fontSize: "13px", color: "#555555", marginTop: "10px" }}>
-            NRL · AFL · Football · F1 · NBA · Golf & more
+            ASX · Macro · Commodities · FX · Bitcoin
           </p>
         </header>
 
         {/* Body */}
         <div style={{ marginBottom: "40px" }}>
           <p style={{ fontFamily: "Georgia, serif", fontSize: "16px", color: "#222222", lineHeight: 1.75, marginBottom: "16px" }}>
-            Every weekend, <em>The Sporting Brief</em> delivers a sharp, AI-powered wrap of the results and stories that matter — NRL, AFL, football, F1, NBA, golf, cricket, and more.
+            Every weekday morning before the ASX opens, <em>The Markets Brief</em> delivers live market data, overnight US moves, ASX movers, and the macro stories driving Australian markets.
           </p>
           <p style={{ fontFamily: "Georgia, serif", fontSize: "16px", color: "#222222", lineHeight: 1.75 }}>
-            All the scores. The big stories. Straight to your inbox.
+            In your inbox by 7:30am AEST. Free.
           </p>
         </div>
 
@@ -109,7 +109,7 @@ export default function SportingHome() {
               Confirmed
             </p>
             <p style={{ fontFamily: "Georgia, serif", fontSize: "20px", color: "#111111", fontWeight: 700 }}>
-              You&apos;re in. Check your inbox this weekend.
+              You&apos;re in. See you at 7:30am.
             </p>
           </div>
         ) : status === "duplicate" ? (
@@ -118,7 +118,7 @@ export default function SportingHome() {
               Already subscribed
             </p>
             <p style={{ fontFamily: "Georgia, serif", fontSize: "16px", color: "#222222", lineHeight: 1.75 }}>
-              That email is already on the list. See you this weekend.
+              That email is already on the list. See you tomorrow morning.
             </p>
           </div>
         ) : (
@@ -159,7 +159,7 @@ export default function SportingHome() {
         {/* Footer */}
         <footer style={{ marginTop: "48px", borderTop: "2px solid #111111", paddingTop: "16px" }}>
           <p style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#888888", marginBottom: "8px" }}>
-            Your weekend AI-powered sports briefing.
+            Your daily ASX pre-market briefing.
           </p>
           <p style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#888888", margin: 0 }}>
             <a href="/privacy" style={{ color: "#555555", marginRight: "16px", textDecoration: "underline" }}>Privacy Policy</a>
