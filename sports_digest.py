@@ -7,6 +7,7 @@ Same architecture as daily_digest.py. Run with --preview to check output locally
 import os
 import re
 import html
+import socket
 import difflib
 import subprocess
 from datetime import datetime, timezone, timedelta
@@ -119,20 +120,28 @@ SIMILARITY_THRESHOLD = 0.75
 # ---------------------------------------------------------------------------
 # Fetch & deduplicate
 # ---------------------------------------------------------------------------
-def fetch_entries(feeds: dict) -> dict:
+def fetch_entries(feeds: dict, hours_override: int = 0) -> dict:
     aest_now = datetime.now(ZoneInfo("Australia/Sydney"))
     is_monday = aest_now.weekday() == 0
     is_thursday = aest_now.weekday() == 3
-    base_hours = 120 if is_monday else (48 if is_thursday else 24)
+    if hours_override:
+        base_hours = hours_override
+    else:
+        base_hours = 120 if is_monday else (48 if is_thursday else 24)
     cutoff_default = datetime.now(timezone.utc) - timedelta(hours=base_hours)
-    cutoff_ai = datetime.now(timezone.utc) - timedelta(hours=72)
+    cutoff_ai = datetime.now(timezone.utc) - timedelta(hours=max(base_hours, 72))
     results = {k: [] for k in feeds}
 
     for cat, urls in feeds.items():
         cutoff = cutoff_ai if cat == "ai_sport" else cutoff_default
         for url in urls:
             try:
-                feed = feedparser.parse(url)
+                old_timeout = socket.getdefaulttimeout()
+                socket.setdefaulttimeout(10)
+                try:
+                    feed = feedparser.parse(url)
+                finally:
+                    socket.setdefaulttimeout(old_timeout)
                 source = feed.feed.get("title", url)
                 for e in feed.entries:
                     dt = _parse_date(e)
@@ -316,146 +325,136 @@ def fetch_scores() -> tuple[str, dict]:
 
 
 # ---------------------------------------------------------------------------
-# Claude CLI summarisation
+# Claude CLI summarisation — per-sport pipeline
 # ---------------------------------------------------------------------------
-def build_prompt(entries: dict, scores: str = "", mode: str = "wrap") -> str:
-    is_preview = mode == "preview"
 
-    if is_preview:
-        briefing_instruction = (
-            "Write a 400-word WEEK PREVIEW with bold headings: **NRL**, **AFL**, **Football**, **Cricket**, **F1**, **NBA**, **MLB/NHL**, **Golf**.\n"
-            "Each section: 2-4 bullet points of key fixtures and storylines. Format: '• Team A v Team B (Day) — key context.'\n"
-            "Cricket: Australian Men's and Women's national teams only, plus Australians in the IPL. Skip County Championship and non-Australian domestic cricket.\n"
-            "Facts only. Specific names, teams, and dates. No editorial framing."
+# (feed_key, display_label, tag, max_stories, special_notes)
+SPORT_SECTIONS = [
+    ("nrl",      "NRL",                       "NRL",       6, ""),
+    ("afl",      "AFL",                        "AFL",       6, ""),
+    ("football", "Football/Soccer",            "FOOTBALL",  8, ""),
+    ("cricket",  "Cricket",                    "CRICKET",   5,
+     "Australian Men's and Women's national teams only, plus Australians in the IPL. Ignore County Championship and non-Australian domestic cricket."),
+    ("f1",       "Formula 1",                  "F1",        5, "RESULT format: 'Winner: Name, P2: Name' or omit."),
+    ("nba",      "NBA",                        "NBA",       5, ""),
+    ("us_sport", "MLB/NHL",                    "US_SPORT",  5, ""),
+    ("golf",     "Golf",                       "GOLF",      5, "RESULT format: 'Leader: Name -12' or omit."),
+    ("ai_sport", "AI, Business & Technology",  "AI_SPORT",  5,
+     "Cover: AI/data analytics, broadcast tech, sports business deals, stadium tech, player tracking, club ownership/finance. Name the specific technology, company, or deal. If no genuine story exists, write exactly: NO_CONTENT"),
+]
+
+
+def build_sport_prompt(label: str, tag: str, entries: list, scores_text: str, mode: str, special_notes: str = "") -> str:
+    is_preview = mode == "preview"
+    if tag == "AI_SPORT":
+        overview_instr = f"2-3 sentences covering the most interesting AI, business, or technology stories in sport. Put each sentence on its own line. {special_notes}"
+    elif is_preview:
+        overview_instr = (
+            f"2-3 sentences previewing the most important {label} fixtures this week. "
+            "Lead with the biggest game. Put each sentence on its own line. Facts only — specific teams, days, and context."
         )
-        overview_instruction = "1-sentence preview of the most important {sport} fixture this week. Format: '[Team] host/face [Team] on [day], with [key context].' No editorial framing — just the fact."
-        summary_instruction = "2 sentences — preview focus: who's playing, what's at stake, key players to watch."
     else:
-        briefing_instruction = (
-            "Write a WEEKEND WRAP briefing in 3-4 short paragraphs — no bullet points, no bold headings, no sport-by-sport structure.\n"
-            "This is the opening of a weekend sports podcast. Write like a presenter walking the listener through what happened — conversational but authoritative.\n"
-            "Each paragraph covers a cluster of related stories. Cover the 4-6 most significant stories across all sports. Specific names and scores must be included — e.g. 'Kimi Antonelli won the Miami Grand Prix for the third consecutive race' not 'a driver extended their championship lead'.\n"
-            "Separate each paragraph with a blank line.\n"
-            "Cricket: Australian Men's and Women's national teams only, plus Australians in the IPL.\n"
-            "No dramatic framing, no colour writing. Just the facts, told in a natural spoken voice.\n"
-            "End the final paragraph with a single sentence pointing to what's coming up next weekend."
+        overview_instr = (
+            f"2-3 sentences covering the biggest {label} results from the weekend. "
+            "Lead with the headline result. Put each sentence on its own line. Facts only — scores, names, key details."
         )
-        overview_instruction = "1-sentence factual summary of the biggest {sport} result from the weekend. Format: '[Team] defeated [Team] [score], with [key detail].' No editorial framing — just the fact."
-        summary_instruction = "2 sentences — result focus: include the score in the first sentence, key moment or player in the second."
+
+    result_hint = special_notes if tag in ("F1", "GOLF") else "score e.g. 'Sharks def. Tigers 52-10', or omit if unknown"
 
     lines = [
-        f"You are producing a {'week preview' if is_preview else 'weekend wrap'} sports digest for Australian sports fans with a global outlook.",
-        "Based on the stories and scoreboard data below, produce output in EXACTLY this format — no extra text:\n",
-
-        "GLOBAL RULES — follow these exactly for every section:",
-        "1. Always use specific names — players, coaches, teams. Never say 'a player', 'the superstar', 'a coach'.",
-        "2. Always include the scoreline when reporting a result. Never say 'won' or 'defeated' without the score.",
-        "3. If a score or fact is not in the source data, leave it out entirely. Do NOT write 'no score was confirmed' or 'score unavailable' — just omit it.",
-        "4. In the BRIEFING section: flowing prose only — no bullet points, no bold headings. In the STORY sections: include the score in RESULT field.",
-        "5. No colour writing, no dramatic framing, no vague descriptors. Pure information.",
-        "6. Cut every unnecessary word. 'Holding off a second-half comeback' not 'holding off a second-half comeback attempt'. 'Cook kicked the winner' not 'Cook kicked what proved to be the winner'.\n",
-
-        "BRIEFING_START",
-        briefing_instruction,
-        "No stage directions, no script labels. Clean readable prose only.",
-        "BRIEFING_END\n",
-
-        f"NRL_OVERVIEW_START",
-        overview_instruction.format(sport="NRL"),
-        "NRL_OVERVIEW_END\n",
-
-        "STORY BLOCK RULES: RESULT = score e.g. 'Roosters def. Broncos 38-24', omit if unknown. SUMMARY = 1 sentence, score first, key detail second.\n",
-
-        "2 most important NRL stories:",
-        "NRL_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nRESULT: <score or omit>\nSUMMARY: <1 sentence>\nNRL_STORY_END\n",
-
-        "AFL_OVERVIEW_START",
-        overview_instruction.format(sport="AFL"),
-        "AFL_OVERVIEW_END\n",
-
-        "2 most important AFL stories:",
-        "AFL_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nRESULT: <score or omit>\nSUMMARY: <1 sentence>\nAFL_STORY_END\n",
-
-        "FOOTBALL_OVERVIEW_START",
-        overview_instruction.format(sport="Football/Soccer"),
-        "FOOTBALL_OVERVIEW_END\n",
-
-        "2 most important football stories:",
-        "FOOTBALL_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nRESULT: <score or omit>\nSUMMARY: <1 sentence>\nFOOTBALL_STORY_END\n",
-
-        "CRICKET_OVERVIEW_START",
-        overview_instruction.format(sport="Cricket"),
-        "CRICKET focus: Australian Men's and Women's national teams only, plus Australian players in the IPL. Ignore County Championship and non-Australian domestic cricket entirely.",
-        "CRICKET_OVERVIEW_END\n",
-
-        "2 most important cricket stories (Australian teams/players only):",
-        "CRICKET_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nRESULT: <score or omit>\nSUMMARY: <1 sentence>\nCRICKET_STORY_END\n",
-
-        "F1_OVERVIEW_START",
-        overview_instruction.format(sport="Formula 1"),
-        "F1_OVERVIEW_END\n",
-
-        "2 most important F1 stories:",
-        "F1_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nRESULT: <e.g. 'Winner: Antonelli, P2: Norris' or omit>\nSUMMARY: <1 sentence>\nF1_STORY_END\n",
-
-        "NBA_OVERVIEW_START",
-        overview_instruction.format(sport="NBA"),
-        "NBA_OVERVIEW_END\n",
-
-        "2 most important NBA stories:",
-        "NBA_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nRESULT: <score or omit>\nSUMMARY: <1 sentence>\nNBA_STORY_END\n",
-
-        "US_SPORT_OVERVIEW_START",
-        overview_instruction.format(sport="US Sport (MLB/NHL)"),
-        "US_SPORT_OVERVIEW_END\n",
-
-        "2 most important MLB/NHL stories:",
-        "US_SPORT_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nRESULT: <score or omit>\nSUMMARY: <1 sentence>\nUS_SPORT_STORY_END\n",
-
-        "GOLF_OVERVIEW_START",
-        overview_instruction.format(sport="Golf"),
-        "GOLF_OVERVIEW_END\n",
-
-        "2 most important golf stories:",
-        "GOLF_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nRESULT: <e.g. 'Leader: Scheffler -12' or omit>\nSUMMARY: <1 sentence>\nGOLF_STORY_END\n",
-
-        "AI_SPORT_OVERVIEW_START",
-        "1-sentence snapshot of the most interesting AI, business, or technology story in sport. Cover: AI/data analytics, broadcast tech, sports business deals, stadium tech, player tracking, club ownership/finance. Name the specific technology, company, or deal. If none exists in the sources write exactly: NO_CONTENT",
-        "AI_SPORT_OVERVIEW_END\n",
-
-        "Up to 2 AI, business & technology in sport stories (only if genuine — no puff pieces):",
-        "AI_SPORT_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nSUMMARY: <1 sentence — name specific technology, company, or deal>\nAI_SPORT_STORY_END\n",
-
-        "=== STORIES ===\n",
+        f"You are writing the {label} section of a weekend sports digest for Australian fans.",
+        "Produce output in EXACTLY this format — no extra text, no preamble:\n",
+        f"{tag}_OVERVIEW_START",
+        overview_instr,
+        f"{tag}_OVERVIEW_END\n",
+        f"2 most important {label} stories (use EXACTLY this block format):",
+        f"{tag}_STORY_START",
+        "TITLE: <headline>",
+        "SOURCE: <outlet name>",
+        "URL: <url>",
+        f"RESULT: <{result_hint}>",
+        "SUMMARY: <1 sentence — score first, key detail second>",
+        f"{tag}_STORY_END\n",
+        "RULES:",
+        "1. Specific names only — players, coaches, teams. Never 'a player' or 'the star'.",
+        "2. Always include the score when reporting a result.",
+        "3. If a fact is not in the source data, omit it — do not write 'unavailable'.",
+        "4. No colour writing, no drama. Pure information.",
     ]
-    if scores:
-        lines.insert(-1, scores)
-        lines.insert(-1, "")
+    if special_notes and tag not in ("F1", "GOLF", "AI_SPORT"):
+        lines.append(f"5. {special_notes}")
 
-    limits = {"nrl": 6, "afl": 6, "football": 8, "cricket": 5, "f1": 5,
-              "nba": 5, "us_sport": 5, "golf": 5, "rugby_union": 4, "cycling": 4, "ai_sport": 5}
-    for cat, items in entries.items():
-        lines.append(f"--- {cat.upper()} ---")
-        for item in items[:limits.get(cat, 10)]:
-            lines.append(f"[{item['source']}] {item['title']}")
+    lines.append(f"\n=== {label.upper()} STORIES ===")
+    for item in entries:
+        lines.append(f"[{item['source']}] {item['title']}")
+        if item.get("url"):
             lines.append(f"  {item['url']}")
-        lines.append("")
+
+    if scores_text:
+        lines.append(f"\n=== LIVE SCORES (reference only) ===\n{scores_text}")
 
     return "\n".join(lines)
 
 
-def call_claude(prompt: str) -> str:
-    print("  Calling claude CLI...")
+def build_briefing_prompt(sport_summaries: dict, mode: str) -> str:
+    is_preview = mode == "preview"
+    if is_preview:
+        instr = (
+            "Write a WEEK PREVIEW in 3-4 paragraphs. Podcast presenter voice — conversational but authoritative.\n"
+            "Cover the 4-6 most significant upcoming fixtures. Group related fixtures into the same paragraph.\n"
+            "Separate each paragraph with a blank line. Do not put every sentence on its own line.\n"
+            "End with a sentence on what to watch for this weekend."
+        )
+    else:
+        instr = (
+            "Write a WEEKEND WRAP in 3-4 paragraphs. Podcast presenter voice — conversational but authoritative.\n"
+            "Cover the 4-6 most significant stories. Specific names and scores required — e.g. 'Antonelli won Miami' not 'a driver extended their lead'.\n"
+            "Group related stories into the same paragraph. Separate each paragraph with a blank line. Do not put every sentence on its own line.\n"
+            "End with a sentence on what's coming up next weekend."
+        )
+
+    lines = [
+        "You are writing the opening briefing for a weekend sports digest.",
+        instr,
+        "No bullet points, no bold headings, no sport labels. Flowing prose only.\n",
+        "BRIEFING_START",
+        "[3-4 paragraphs separated by blank lines]",
+        "BRIEFING_END\n",
+        "=== SPORT SUMMARIES ===",
+    ]
+    for sport_label, overview in sport_summaries.items():
+        if overview and overview.strip().upper() not in ("NO_CONTENT", ""):
+            lines.append(f"{sport_label}: {overview}")
+    return "\n".join(lines)
+
+
+def call_claude(prompt: str, retries: int = 2, timeout: int = 120) -> str:
+    """Call the claude CLI, passing prompt via stdin."""
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-    result = subprocess.run(
-        ["claude", "-p", "-"],
-        input=prompt,
-        capture_output=True, text=True, timeout=900,
-        env=env,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"claude CLI error (rc={result.returncode}): stderr={result.stderr!r} stdout={result.stdout[:500]!r}")
-    return result.stdout
+    home = os.path.expanduser("~")
+
+    for attempt in range(1, retries + 1):
+        print(f"  Calling claude CLI (attempt {attempt}/{retries})...")
+        try:
+            result = subprocess.run(
+                ["claude", "-p", "-", "--allowedTools", ""],
+                input=prompt,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                timeout=timeout,
+                env=env,
+                cwd=home,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"claude CLI error (rc={result.returncode})")
+            return result.stdout
+        except subprocess.TimeoutExpired:
+            print(f"  WARN: claude timed out after {timeout}s on attempt {attempt}")
+            if attempt == retries:
+                raise RuntimeError(f"claude CLI timed out after {retries} attempts")
+
+    raise RuntimeError("claude CLI failed")
 
 
 # ---------------------------------------------------------------------------
@@ -555,11 +554,14 @@ def _results_table(results: list[dict], round_num: int, label: str) -> str:
 
 def _section(label: str, overview: str, stories: list, accent: str = "#111", results_html: str = "") -> str:
     stories_html = "".join(_story_card(s) for s in stories)
+    para_style = 'margin:0 0 14px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;'
+    paras = [p.strip() for p in re.split(r'\n{2,}', overview.strip()) if p.strip()]
+    overview_html = "".join(f'<p style="{para_style}">{_e(p)}</p>' for p in paras) if paras else ""
     return f"""
   <tr><td style="padding:0 48px 32px;">
     <p style="margin:0 0 20px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">{_e(label)}</p>
     <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;border-left:3px solid {accent};padding-left:10px;">Overview</h2>
-    <p style="margin:0 0 24px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">{_e(overview)}</p>
+    {overview_html}
     {results_html}
     {stories_html}
   </td></tr>
@@ -626,8 +628,8 @@ def render_html(d: dict, date_str: str, edition_label: str = "Weekend Wrap", sco
       <tr>
         <td><p style="margin:0;font-size:12px;color:#888;font-family:Arial,sans-serif;">Your daily sports briefing</p></td>
         <td align="right">
-          <a href="mailto:hello@thesportingbrief.com?subject=Subscribe%20to%20The%20Sporting%20Brief" style="font-size:11px;color:#111;font-family:Arial,sans-serif;text-decoration:none;border-bottom:1px solid #111;padding-bottom:1px;margin-right:16px;">Subscribe</a>
-          <a href="mailto:hello@thesportingbrief.com?subject=Unsubscribe%20from%20The%20Sporting%20Brief" style="font-size:11px;color:#888;font-family:Arial,sans-serif;text-decoration:none;border-bottom:1px solid #ccc;padding-bottom:1px;">Unsubscribe</a>
+          <a href="mailto:hello@theoperatingbrief.com?subject=Subscribe%20to%20The%20Sporting%20Brief" style="font-size:11px;color:#111;font-family:Arial,sans-serif;text-decoration:none;border-bottom:1px solid #111;padding-bottom:1px;margin-right:16px;">Subscribe</a>
+          <a href="mailto:hello@theoperatingbrief.com?subject=Unsubscribe%20from%20The%20Sporting%20Brief" style="font-size:11px;color:#888;font-family:Arial,sans-serif;text-decoration:none;border-bottom:1px solid #ccc;padding-bottom:1px;">Unsubscribe</a>
         </td>
       </tr>
     </table>
@@ -683,9 +685,9 @@ def save_edition(slug: str, subject: str, preview_text: str, html_body: str) -> 
 def send_email(to: list[str], subject: str, html_body: str) -> str:
     resend.api_key = os.environ["RESEND_API_KEY"]
     params: resend.Emails.SendParams = {
-        "from": os.environ.get("SPORTS_FROM_EMAIL", "brief@thesportingbrief.com"),
+        "from": os.environ.get("SPORTS_FROM_EMAIL", "brief@theoperatingbrief.com"),
         "to": to,
-        "reply_to": os.environ.get("SPORTS_REPLY_TO_EMAIL", "hello@thesportingbrief.com"),
+        "reply_to": os.environ.get("SPORTS_REPLY_TO_EMAIL", "hello@theoperatingbrief.com"),
         "subject": subject,
         "html": html_body,
     }
@@ -703,10 +705,10 @@ def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[s
         unsub_url = f"https://thesportingbrief.com/unsubscribe?token={token}"
         sub_url = "https://thesportingbrief.com"
         personalised = base_html.replace(
-            'href="mailto:hello@thesportingbrief.com?subject=Subscribe%20to%20The%20Sporting%20Brief"',
+            'href="mailto:hello@theoperatingbrief.com?subject=Subscribe%20to%20The%20Sporting%20Brief"',
             f'href="{sub_url}"'
         ).replace(
-            'href="mailto:hello@thesportingbrief.com?subject=Unsubscribe%20from%20The%20Sporting%20Brief"',
+            'href="mailto:hello@theoperatingbrief.com?subject=Unsubscribe%20from%20The%20Sporting%20Brief"',
             f'href="{unsub_url}"'
         )
         resend_id = send_email([email], subject, personalised)
@@ -715,55 +717,141 @@ def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[s
 
 
 # ---------------------------------------------------------------------------
+# Ingest — fetch + summarise per sport + store in DB
+# ---------------------------------------------------------------------------
+def run_ingest(mode: str, backfill: bool = False) -> None:
+    aest = ZoneInfo("Australia/Sydney")
+    today = datetime.now(aest).date()
+    sb = get_supabase()
+
+    hours = 336 if backfill else 0  # 14 days if backfill, else auto by weekday
+    if backfill:
+        print("Fetching RSS feeds (14-day backfill)…")
+    else:
+        print("Fetching RSS feeds…")
+    entries = fetch_entries(FEEDS, hours_override=hours)
+    total = sum(len(v) for v in entries.values())
+    print(f"  {total} stories total after deduplication")
+    if total == 0:
+        print("No stories found. Exiting.")
+        return
+
+    scores_text, _ = fetch_scores()
+
+    print("Summarising with Claude (per-sport)…")
+    for feed_key, label, tag, max_stories, special_notes in SPORT_SECTIONS:
+        sport_entries = entries.get(feed_key, [])[:max_stories]
+        if not sport_entries and feed_key != "ai_sport":
+            print(f"  [{label}] skipped — no stories")
+            continue
+        prompt = build_sport_prompt(label, tag, sport_entries, scores_text, mode, special_notes)
+        print(f"  [{label}] {len(prompt):,} chars — calling Claude…")
+        raw = call_claude(prompt)
+        overview = _extract(raw, f"{tag}_OVERVIEW")
+        stories = _extract_blocks(raw, f"{tag}_STORY")
+        try:
+            sb.table("sports_daily_summaries").upsert({
+                "summary_date": str(today),
+                "sport": feed_key,
+                "overview": overview,
+                "stories": stories[:2],
+            }, on_conflict="summary_date,sport").execute()
+            print(f"  [{label}] stored — {len(stories)} stories")
+        except Exception as ex:
+            print(f"  WARN [{label}] DB write failed: {ex}")
+
+    print("Ingest complete ✅")
+
+
+# ---------------------------------------------------------------------------
+# Compile — load from DB + write briefing + render
+# ---------------------------------------------------------------------------
+def compile_digest(mode: str, days_back: int = 14) -> tuple[dict, dict]:
+    """Load stored sport summaries, generate briefing. Returns (digest, scores_structured)."""
+    aest = ZoneInfo("Australia/Sydney")
+    cutoff = (datetime.now(aest).date() - timedelta(days=days_back)).isoformat()
+    sb = get_supabase()
+
+    print("Loading sport summaries from DB…")
+    result = sb.table("sports_daily_summaries") \
+        .select("summary_date, sport, overview, stories") \
+        .gte("summary_date", cutoff) \
+        .order("summary_date", desc=True) \
+        .execute()
+
+    # Most recent row per sport
+    sport_rows: dict[str, dict] = {}
+    for row in result.data:
+        if row["sport"] not in sport_rows:
+            sport_rows[row["sport"]] = row
+    print(f"  {len(sport_rows)} sport(s) loaded from DB")
+
+    digest: dict = {
+        "briefing": "",
+        "nrl_overview": "", "nrl_stories": [],
+        "afl_overview": "", "afl_stories": [],
+        "football_overview": "", "football_stories": [],
+        "cricket_overview": "", "cricket_stories": [],
+        "f1_overview": "", "f1_stories": [],
+        "nba_overview": "", "nba_stories": [],
+        "us_sport_overview": "", "us_sport_stories": [],
+        "golf_overview": "", "golf_stories": [],
+        "ai_sport_overview": "", "ai_sport_stories": [],
+    }
+    sport_summaries: dict[str, str] = {}
+    for feed_key, label, tag, _, _ in SPORT_SECTIONS:
+        if feed_key in sport_rows:
+            row = sport_rows[feed_key]
+            digest[f"{feed_key}_overview"] = row.get("overview") or ""
+            digest[f"{feed_key}_stories"] = row.get("stories") or []
+            sport_summaries[label] = row.get("overview") or ""
+
+    print("  [Briefing] calling Claude…")
+    briefing_prompt = build_briefing_prompt(sport_summaries, mode)
+    raw = call_claude(briefing_prompt)
+    digest["briefing"] = _extract(raw, "BRIEFING")
+    print(f"  [Briefing] done — {len(digest['briefing'])} chars")
+
+    _, scores_structured = fetch_scores()
+    return digest, scores_structured
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
     import argparse, webbrowser
     parser = argparse.ArgumentParser()
-    parser.add_argument("--preview", action="store_true", help="Generate HTML and open in browser without sending")
+    parser.add_argument("--ingest", action="store_true",
+                        help="Fetch stories, summarise per sport, store in DB. Run daily.")
+    parser.add_argument("--backfill", action="store_true",
+                        help="Use with --ingest: fetch 14 days of RSS articles instead of the normal window.")
+    parser.add_argument("--preview", action="store_true",
+                        help="Compile from DB and open in browser — no email sent.")
     parser.add_argument("--mode", choices=["wrap", "preview"], default=None,
-                        help="Edition mode: 'wrap' (Thursday, weekend results) or 'preview' (Monday, week ahead). Auto-detected from day of week if not set.")
+                        help="Edition mode: 'wrap' (results) or 'preview' (week ahead). Auto-detected if not set.")
     args = parser.parse_args()
 
     aest = ZoneInfo("Australia/Sydney")
     now_aest = datetime.now(aest)
     date_str = now_aest.strftime("%B %d, %Y")
 
-    # Auto-detect mode: Thursday = week preview (upcoming weekend), Monday = weekend wrap (results)
     if args.mode:
         mode = args.mode
     else:
-        mode = "preview" if now_aest.weekday() == 3 else "wrap"
+        mode = "preview" if now_aest.weekday() in (3, 4) else "wrap"
 
     edition_label = "Week Preview" if mode == "preview" else "Weekend Wrap"
-    subject = f"The Sporting Brief – {edition_label} – {date_str}"
     print(f"Mode: {edition_label}")
 
-    print("Fetching RSS feeds…")
-    entries = fetch_entries(FEEDS)
-    total = sum(len(v) for v in entries.values())
-    print(f"  {total} stories total after deduplication")
-
-    if total == 0:
-        print("No stories found. Exiting.")
+    # --- INGEST MODE ---
+    if args.ingest:
+        run_ingest(mode, backfill=getattr(args, "backfill", False))
         return
 
-    print("Fetching live scores from ESPN…")
-    scores_text, scores_structured = fetch_scores()
-
-    print("Summarising with Claude…")
-    prompt = build_prompt(entries, scores_text, mode)
-    print(f"  Prompt length: {len(prompt):,} chars (~{len(prompt)//4:,} tokens)")
-    raw = call_claude(prompt)
-
-    with open("debug_claude_response.txt", "w") as f:
-        f.write(raw)
-
-    print("Parsing response…")
-    digest = parse_response(raw)
-    print(f"  briefing: {len(digest['briefing'])} chars")
-    print(f"  nrl_overview: {len(digest['nrl_overview'])} chars")
-    print(f"  afl_overview: {len(digest['afl_overview'])} chars")
+    # --- COMPILE / SEND MODE ---
+    subject = f"The Sporting Brief – {edition_label} – {date_str}"
+    digest, scores_structured = compile_digest(mode)
 
     print("Rendering HTML…")
     html_body = render_html(digest, date_str, edition_label, scores=scores_structured)
@@ -778,7 +866,7 @@ def main():
         return
 
     print("Saving edition to archive…")
-    slug = datetime.now(aest).strftime("%Y-%m-%d") + f"-{mode}"
+    slug = now_aest.strftime("%Y-%m-%d") + f"-{mode}"
     preview_text = digest.get("briefing", "")[:120]
     save_edition(slug, subject, preview_text, html_body)
 

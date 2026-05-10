@@ -1,0 +1,182 @@
+BRIEFING_START
+
+Kimi Antonelli won the Miami Grand Prix for the third consecutive race, edging Lando Norris to extend his Formula 1 championship lead. Norris finished P2 and called himself gutted, while Charles Leclerc received a 20-second post-race penalty after his own error, and Max Verstappen a 5-second penalty. In the Premier League, Manchester United beat Liverpool 3-2 with Michael Carrick in the dugout, Richarlison headed Tottenham to a 2-1 win at Aston Villa to lift Spurs out of the relegation zone, and Inter Milan were confirmed as Serie A champions after Marcus Thuram sparked a win over Parma.
+
+Craig Bellamy's diagnosis with a neurodegenerative disorder dominated the NRL conversation, drawing support from across the game. In Round 9, the Sharks ran over Wests Tigers 52-10, the Knights beat the Rabbitohs 42-38, and the Roosters accounted for the Broncos 38-24. NSW won Women's State of Origin Game 1, with Jesse Southwell's field goal and a Jessica Sergis try sealing the result.
+
+Brisbane Lions beat Essendon 143-79 in the biggest AFL margin of Round 8, Sydney beat Melbourne 131-114 with new recruit Rosas starring at the SCG, and Adelaide edged Port Adelaide 76-75 in the SA derby. Collingwood and Hawthorn finished 93-93. In the NBA playoffs, the Philadelphia 76ers completed a series comeback against the Boston Celtics, and Victor Wembanyama posted a double-double as the Spurs clinched their series.
+
+Cameron Young won the Cadillac Championship at Doral wire-to-wire on the PGA Tour, while Nelly Korda claimed her third LPGA title of 2026 with a four-shot win in Mexico. In cricket, Australia's women lead the ICC Women's ODI rankings with the Women's T20 World Cup 2026 squad confirmed this weekend. Next weekend sees NRL Round 10, AFL Round 9, and LeBron James' Lakers open their playoff series against the Oklahoma City Thunder.
+
+BRIEFING_END
+
+NRL_OVERVIEW_START
+Sharks defeated Wests Tigers 52-10, with 42 points the round's largest winning margin in NRL Round 9.
+NRL_OVERVIEW_END
+
+NRL_STORY_START
+TITLE: Support floods in after 'heartbreaking' Bellamy news
+SOURCE: WWOS
+URL: https://wwos.nine.com.au/nrl/news-2026-craig-bellamy-neurodegenerative-disorder-health-melbourne-storm-coach-club-statement/2c0afeda-1b13-4c44-acdb-458125d6de20
+SUMMARY: Craig Bellamy was diagnosed with a neurodegenerative disorder, with widespread support flowing in for the Melbourne Storm coach.
+NRL_STORY_END
+
+NRL_STORY_START
+TITLE: Young gun's field goal, Sergis try seal victory for NSW
+SOURCE: WWOS
+URL: https://wwos.nine.com.au/nrlw/womens-state-of-origin-2026-nsw-blues-queensland-maroons-jesse-southwell-field-goal-jessica-sergis-try-video-score-result/20b69889-2a3a-480c-8796-1d38c3f6cc80
+RESULT: NSW Blues def. QLD Maroons
+SUMMARY: NSW Blues won Women's State of Origin Game 1, with Jesse Southwell's field goal and a Jessica Sergis try sealing the result.
+NRL_STORY_END
+
+AFL_OVERVIEW_START
+Brisbane Lions defeated Essendon 143-79, the round's largest margin in AFL Round 8.
+AFL_OVERVIEW_END
+
+AFL_STORY_START
+TITLE: Rosas makes a statement against the Dees
+SOURCE: The Age
+URL: https://www.theage.com.au/sport/afl/rosas-makes-a-statement-against-the-dees-20260503-p5ztc6.html?ref=rss&utm_medium=rss&utm_source=rss_sport_afl
+RESULT: Sydney 131 def. Melbourne 114
+SUMMARY: Sydney defeated Melbourne 131-114 at the SCG, with recruit Rosas delivering a standout performance against the Demons.
+AFL_STORY_END
+
+AFL_STORY_START
+TITLE: Gold Coast put GWS curse to bed; Cripps avoids ban over 'chicken-wing' tackle
+SOURCE: The Age
+URL: https://www.theage.com.au/sport/afl/relief-for-carlton-blues-as-skipper-patrick-cripps-avoids-ban-for-misconduct-20260503-p5ztbo.html?ref=rss&utm_medium=rss&utm_source=rss_sport_afl
+RESULT: Gold Coast 83 def. GWS 63
+SUMMARY: Gold Coast beat Greater Western Sydney 83-63, while Carlton skipper Patrick Cripps escaped a ban over a chicken-wing tackle charge.
+AFL_STORY_END
+
+FOOTBALL_OVERVIEW_START
+Manchester United defeated Liverpool 3-2, with Michael Carrick's side holding on at Old Trafford.
+FOOTBALL_OVERVIEW_END
+
+FOOTBALL_STORY_START
+TITLE: 'It feels natural': Michael Carrick comfortable with United role after Liverpool win
+SOURCE: The Guardian
+URL: https://www.theguardian.com/football/2026/may/03/it-feels-natural-michael-carrick-comfortable-with-united-role-after-liverpool-win
+RESULT: Manchester United def. Liverpool 3-2
+SUMMARY: Manchester United beat Liverpool 3-2, with manager Michael Carrick saying the role feels natural after the Old Trafford win.
+FOOTBALL_STORY_END
+
+FOOTBALL_STORY_START
+TITLE: Inter cruise to Serie A title triumph after Thuram sparks victory over Parma
+SOURCE: The Guardian
+URL: https://www.theguardian.com/football/2026/may/03/inter-win-serie-a-title-parma-football-italy
+SUMMARY: Inter Milan were confirmed as Serie A champions after Marcus Thuram sparked a win over Parma.
+FOOTBALL_STORY_END
+
+CRICKET_OVERVIEW_START
+Australia's women lead the ICC Women's ODI rankings heading into the Women's T20 World Cup 2026, with the squad confirmed this weekend.
+CRICKET_OVERVIEW_END
+
+CRICKET_STORY_START
+TITLE: All the Women's T20 World Cup 2026 squads as they drop
+SOURCE: cricket.com.au
+URL: https://news.google.com/rss/articles/CBMi9wFBVV95cUxNZEZnZ19iNkI0c01LNVlxcHo1SlJyQ25sRkdaalU1ZW1NZE1HVFhLZ2dXX01wczhzMnB0aEVLclBkbFVtVUE3VTRWUFdpUHkxTURsaGMxV0NsTjl5QlhreWFrTWJQZjVCR0l0X3AtT0lqMUlXYlFUd2x1ejBtNjZmVm54RW00YWxHUDN6bW40NHMyVnlkczUwNFFPNHJRWmh0Zy1wdzl4OEFOekc5SWh6a2JjZDNqU1VWRTRLTWtpREZURERET21KdDlnM1RrSEtOcEQybzJlYWV6andOSXQwdUMzM0lKdUdTNE1BdXpHbmdUbS1Nd05B?oc=5
+SUMMARY: Australia's Women's T20 World Cup 2026 squad was confirmed, with the team entering the tournament ranked first in ICC Women's ODI standings.
+CRICKET_STORY_END
+
+CRICKET_STORY_START
+TITLE: Australians in high demand in IPL because of 'championship DNA': Sanjay Manjrekar
+SOURCE: Sportstar
+URL: https://news.google.com/rss/articles/CBMi3wFBVV95cUxOd01ZVmVhTTN2akQ5RWJWZDJERVVqeHd3R3ppc3ZsZjRxZTdMQ2FELWNWUkJtV2h2NlZCNWxtSWdfTVlsa2NieEVxUnUzLU9rZFdXcExaUGlUWUxrSnU1SGY1LU9pZi02TTA3MjVfcUZ0VmNHTEZ0ajRRbWNQMktfRmxmS2VFdDItRC04bUhEYWRoMERlbUlyTVB0ZlNfWC1kMzZKREtUR3ItY2E1VlM4dzdwb3Exazg0eDctOUptVVRFRExZVVFYQkUxUi1haUZQZWVxM1JlMHZCdkFQQ2Jv0gHmAUFVX3lxTE5LcURJY2NfaXVIN0tJejc4d3dxbzY4eUxsck5waDl2X0hRZVBMcnhQdGRDUnEyQllGSmRPTkRmeEpjaGd1bjVfbWFLS05GT05FaVQySkZkQ2pjWDF4OTJaTW9hSWdrTzVPWXZsTmlpTXozNW5zb0JTbmdTRTluM09NcndVVVlnUDRvek5GWWV2TlpNRVlRSWFxTVoybXphUmx5MmlrTV84RXJCZC1DMkIzdVhuNWMxYjFYQmpLNVhHWmdfSFlTZlFHa1BwS19wcjFPdnA0SF8wUDczcVpTM3Q4aDNsVENB?oc=5
+SUMMARY: Former India commentator Sanjay Manjrekar said Australians are in high demand in the IPL due to their 'championship DNA' winning culture.
+CRICKET_STORY_END
+
+F1_OVERVIEW_START
+Kimi Antonelli won the Miami Grand Prix, edging Lando Norris to record his third consecutive victory and extend his championship lead.
+F1_OVERVIEW_END
+
+F1_STORY_START
+TITLE: Antonelli edges out Norris to win chaotic Miami GP
+SOURCE: ESPN
+URL: https://www.espn.com/f1/story/_/id/48655953/miami-grand-prix-formula-1-kimi-antonelli-edges-lando-norris-third-straight-win-extends-title-lead
+RESULT: Winner: Antonelli, P2: Norris
+SUMMARY: Kimi Antonelli won the Miami Grand Prix ahead of Lando Norris for his third consecutive F1 victory, extending his championship lead.
+F1_STORY_END
+
+F1_STORY_START
+TITLE: Leclerc, Verstappen hit with postrace penalties
+SOURCE: ESPN
+URL: https://www.espn.com/f1/story/_/id/48665605/miami-grand-prix-formula-1-charles-leclerc-hit-20-second-penalty-max-verstappen-5second
+SUMMARY: Charles Leclerc received a 20-second post-race penalty and Max Verstappen a 5-second penalty following the Miami Grand Prix.
+F1_STORY_END
+
+NBA_OVERVIEW_START
+Philadelphia 76ers eliminated the Boston Celtics, completing a playoff series comeback.
+NBA_OVERVIEW_END
+
+NBA_STORY_START
+TITLE: 76ers stun Boston to complete series comeback
+SOURCE: BBC Sport
+URL: https://www.bbc.com/sport/basketball/articles/cqxp88zxq8vo?at_medium=RSS&at_campaign=rss
+SUMMARY: Philadelphia 76ers eliminated the Boston Celtics, completing a playoff series comeback.
+NBA_STORY_END
+
+NBA_STORY_START
+TITLE: Wembanyama double-double helps Spurs clinch series
+SOURCE: BBC Sport
+URL: https://www.bbc.com/sport/basketball/articles/c9v389ynzlvo?at_medium=RSS&at_campaign=rss
+SUMMARY: Victor Wembanyama posted a double-double as the San Antonio Spurs clinched their playoff series.
+NBA_STORY_END
+
+US_SPORT_OVERVIEW_START
+New York Yankees defeated Baltimore Orioles 11-3, the weekend's most decisive MLB result.
+US_SPORT_OVERVIEW_END
+
+US_SPORT_STORY_START
+TITLE: Ohtani amid longest hitless streak since 2022
+SOURCE: ESPN
+URL: https://www.espn.com/mlb/story/_/id/48670171/dodgers-shohei-ohtani-goes-hitless-4th-straight-game-first-2022
+RESULT: Los Angeles Dodgers 4 def. St. Louis Cardinals 1
+SUMMARY: Shohei Ohtani went hitless for a fourth consecutive game — his longest streak since 2022 — as the Dodgers beat the Cardinals 4-1.
+US_SPORT_STORY_END
+
+US_SPORT_STORY_START
+TITLE: Yankees option Volpe after rehab window closes
+SOURCE: ESPN
+URL: https://www.espn.com/mlb/story/_/id/48670572/yankees-option-anthony-volpe-rehab-window-closes
+RESULT: New York Yankees 11 def. Baltimore Orioles 3
+SUMMARY: The Yankees optioned Anthony Volpe to the minor leagues after his rehab window closed, as New York beat Baltimore 11-3.
+US_SPORT_STORY_END
+
+GOLF_OVERVIEW_START
+Cameron Young won the Cadillac Championship at Doral wire-to-wire on the PGA Tour.
+GOLF_OVERVIEW_END
+
+GOLF_STORY_START
+TITLE: Young finishes off his wire-to-wire win at Doral
+SOURCE: ESPN
+URL: https://www.espn.com/golf/story/_/id/48669100/cameron-young-finishes-wire-wire-win-cadillac-championship
+RESULT: Winner: Young
+SUMMARY: Cameron Young held the lead throughout to win the Cadillac Championship at Doral wire-to-wire.
+GOLF_STORY_END
+
+GOLF_STORY_START
+TITLE: Korda keeps 'having fun,' wins third title of '26
+SOURCE: ESPN
+URL: https://www.espn.com/golf/story/_/id/48668717/nelly-korda-wins-mexico-4-shots-3rd-title-season
+RESULT: Winner: Korda
+SUMMARY: Nelly Korda won in Mexico by four shots for her third LPGA title of the 2026 season.
+GOLF_STORY_END
+
+AI_SPORT_OVERVIEW_START
+Indiana Fever were accused of using AI to generate a social media post referencing Caitlin Clark, the second such accusation against the WNBA franchise.
+AI_SPORT_OVERVIEW_END
+
+AI_SPORT_STORY_START
+TITLE: Indiana Fever Accused of Using AI Again After Caitlin Clark Remark
+SOURCE: Front Office Sports
+URL: https://frontofficesports.com/indiana-fever-accused-of-using-ai-again-after-caitlin-clark-remark/
+SUMMARY: Indiana Fever faced a second accusation of using AI to generate social media content, this time in a post referencing Caitlin Clark.
+AI_SPORT_STORY_END
+
+AI_SPORT_STORY_START
+TITLE: Kentucky Derby Breaks Viewership Record with 19.6M
+SOURCE: Front Office Sports
+URL: https://frontofficesports.com/kentucky-derby-breaks-viewership-record-with-19-6m/
+SUMMARY: The Kentucky Derby drew 19.6 million viewers on NBC, breaking the event's broadcast viewership record.
+AI_SPORT_STORY_END

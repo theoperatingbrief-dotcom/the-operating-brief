@@ -1,0 +1,48 @@
+<svg width="1128" height="191" viewBox="0 0 1128 191" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Background -->
+  <rect width="1128" height="191" fill="#0D0D0D"/>
+
+  <!-- Subtle grid texture lines (horizontal) -->
+  <line x1="0" y1="63" x2="1128" y2="63" stroke="#1a1a1a" stroke-width="1"/>
+  <line x1="0" y1="127" x2="1128" y2="127" stroke="#1a1a1a" stroke-width="1"/>
+
+  <!-- Left accent bar -->
+  <rect x="64" y="52" width="3" height="88" fill="#C8A96E"/>
+
+  <!-- Main title -->
+  <text
+    x="88"
+    y="112"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="48"
+    font-weight="bold"
+    fill="#FFFFFF"
+    letter-spacing="3"
+  >THE OPERATING BRIEF</text>
+
+  <!-- Tagline -->
+  <text
+    x="90"
+    y="140"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="13"
+    fill="#999999"
+    letter-spacing="2"
+  >DAILY AI &amp; BUSINESS INTELLIGENCE</text>
+
+  <!-- Right side rule + monogram -->
+  <rect x="960" y="52" width="104" height="2" fill="#C8A96E"/>
+  <text
+    x="1012"
+    y="115"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="42"
+    font-weight="bold"
+    fill="#FFFFFF"
+    text-anchor="middle"
+    letter-spacing="5"
+  >TOB</text>
+  <rect x="960" y="137" width="104" height="2" fill="#C8A96E"/>
+
+</svg>

@@ -1,0 +1,101 @@
+Web access isn't enabled, so I'll write from the headlines and what I know about these stories. Here is the digest:
+
+---
+
+BRIEFING_START
+
+Australian beef exports topped 140,000 tonnes in April, with the US and China both running as vigorous buyers in what shapes as one of the stronger monthly results for the cattle sector this year. For producers managing turn-off decisions heading into winter, sustained export demand at that volume is the most supportive market signal of the week. AuctionsPlus confirmed the same tone, with steer and heifer values lifting across a smaller 16,219-head offering — gains in a tighter yarding point to firm underlying buyer demand.
+
+The more pressing concern for grain growers is urea. A global scramble for nitrogen fertilizer — aggravated by disruption to Middle Eastern supply chains linked to the Iran conflict — has left Australian supply exposed at a critical time. Southern cropping regions are moving toward planting windows and nitrogen application decisions. With global supply tightening and prices likely to move higher before they stabilise, producers who have not locked in urea should be weighing forward contracts against current price levels before the seasonal crunch arrives.
+
+Fuel supply emerged this week as a structural vulnerability for the livestock sector, with analysis examining which segment stops moving first if Australia's fuel position deteriorates — implications run from saleyards to feedlots to live export logistics chains. Queensland released a plan for domestic refinery and storage capacity, which addresses the structural problem over the medium term but provides no near-term protection. On trade, the government's announcement of a new Indonesia beef export license drew pushback from industry this week, with analysts pointing to a significant underlying market access barrier the announcement did not address.
+
+The World Bank's latest Commodity Markets Outlook provides a useful global benchmark, and feedgrain markets are showing a split-season pattern as demand pulls grain north. Details on commodities, global conditions, AgTech, and policy follow below.
+
+BRIEFING_END
+
+COMMODITY_OVERVIEW_START
+Australian beef exports exceeded 140,000 tonnes in April 2026, led by strong US and China buying, marking a standout monthly result for the cattle sector.
+COMMODITY_OVERVIEW_END
+
+COMMODITY_STORY_START
+TITLE: April beef exports soar to +140,000t, led by vigorous US, China trade
+SOURCE: Beef Central
+COMMODITY: Cattle
+URL: https://www.beefcentral.com/trade/april-beef-exports-soar-to-140000t-led-by-vigorous-us-china-trade/
+SUMMARY: Australian beef exports exceeded 140,000 tonnes in April 2026, with the US and China both active as major buyers across the month. For producers making turn-off and forward pricing decisions, export demand at these volumes is the most direct support for cattle values heading into the southern winter period.
+COMMODITY_STORY_END
+
+COMMODITY_STORY_START
+TITLE: Lifts in steer and heifer values in smaller 16,219 head AuctionsPlus offering
+SOURCE: Beef Central
+COMMODITY: Cattle
+URL: https://www.beefcentral.com/markets/lifts-in-steer-and-heifer-values-in-smaller-16219-head-auctionsplus-offering/
+SUMMARY: Steer and heifer values lifted across this week's AuctionsPlus offering of 16,219 head — a below-average yarding. Price gains in a tighter offering indicate buyer demand remains firm in the online cattle market, consistent with the broader export tone.
+COMMODITY_STORY_END
+
+COMMODITY_STORY_START
+TITLE: Feedgrain Focus: Split season pulls grain north
+SOURCE: Beef Central
+COMMODITY: Feedgrain
+URL: https://www.beefcentral.com/lotfeeding/feedgrain-focus-split-season-pulls-grain-north/
+SUMMARY: A split seasonal pattern is pulling feedgrain demand north, shifting grain flows toward northern feeder and feedlot markets. Producers and lotfeeders sourcing or selling grain should monitor basis movement between northern and southern regions as the seasonal divide develops.
+COMMODITY_STORY_END
+
+GLOBAL_OVERVIEW_START
+The World Bank's Commodity Markets Outlook signals a broadly softening global food price environment, setting the ceiling for Australian export commodity returns across grain, oilseeds, and livestock.
+GLOBAL_OVERVIEW_END
+
+GLOBAL_STORY_START
+TITLE: The Commodity Markets Outlook in eight charts
+SOURCE: World Bank Blogs
+URL: https://news.google.com/rss/articles/CBMimAFBVV95cUxOVjBXRzlVTHN6ZjNNcWRTRU0xMFRlaG5uUVhkUzRacEdrUURuWnJqVnZoME1oNHRva3hsT1JDZElEN0VrVmt4WWNEY1oyUVppbllWbUdPRG1ROHYzQXYxUWZYOXJQS3p5SkZpQnhpcWlUNVRFM2xfM1NnOWlYX0FJRnJPdzI2NVRicVkxNWFrakJxaXZDSTA4QQ?oc=5
+SUMMARY: The World Bank's latest Commodity Markets Outlook charts the direction of global food and agricultural prices, providing a benchmark for where Australian grain, oilseed, and livestock export returns sit relative to world price trends. A softening global price environment compresses export returns even where domestic production is strong — relevant context for forward selling decisions this season.
+GLOBAL_STORY_END
+
+GLOBAL_STORY_START
+TITLE: Farm Futures morning grain market analysis
+SOURCE: Farm Progress
+URL: https://news.google.com/rss/articles/CBMieEFVX3lxTE8wMVR3UDJBR1lJUmU1b2NGQjlmQ2phY1htUnVYeE01c1BrOU4wcEl2SS1KZDJMYnRxaXB1Vm5iUVZVYjVwdDh4ajVKVzA0dnRtcHFpRFhLeUFzUUNxU1VFd1FSTjdCZ2x3OXRoZzdpT0dmREhkZTZGRw?oc=5
+SUMMARY: US grain market analysis covers overnight moves in CBOT wheat, corn, and soybeans, shaped by USDA supply-and-demand signals. Direction in Chicago futures sets the reference point for Australian grain export basis and is a key input for producers pricing forward contracts or assessing carry-over strategies.
+GLOBAL_STORY_END
+
+WEATHER_OVERVIEW_START
+NO_CONTENT
+WEATHER_OVERVIEW_END
+
+AGTECH_OVERVIEW_START
+Halter, the GPS-collar and virtual fencing platform used on Australian grazing properties, is adding off-grid power capability to extend the system's reach into remote areas without reliable electricity supply.
+AGTECH_OVERVIEW_END
+
+AGTECH_STORY_START
+TITLE: AgriFood Signals: US farm bill passes, Halter goes off-grid, Earlybird closes deeptech fund
+SOURCE: AgFunderNews
+URL: https://agfundernews.com/agrifood-signals-us-farm-bill-passes-halter-goes-off-grid-earlybird-closes-deeptech-fund
+SUMMARY: Halter — which uses GPS collars and virtual fencing to automate cattle movements and grazing management — is moving to off-grid power capability, making the system viable on remote Australian properties where grid or reliable solar supply has previously been a constraint. For producers who have evaluated Halter but been limited by power infrastructure, this development directly widens the practical use case.
+AGTECH_STORY_END
+
+AGTECH_STORY_START
+TITLE: Great Southern trials examine crop rotations to improve nitrogen efficiency
+SOURCE: Farm Weekly
+URL: https://www.farmweekly.com.au/story/9235231/stirling-to-coast-farmers-trials-give-nitrogen-use-insights/?src=rss
+SUMMARY: Stirling to Coast Farmers in WA's Great Southern region are running trials on how crop rotation sequences affect nitrogen use efficiency, generating on-farm data on reducing synthetic nitrogen inputs without a yield penalty. Results are directly applicable to grain producers across Mediterranean-climate cropping zones in WA and SA — and carry added relevance this season given tightening urea supply.
+AGTECH_STORY_END
+
+POLICY_OVERVIEW_START
+The Australian government's announcement of a new Indonesia beef export license has drawn criticism for obscuring a significant underlying market access barrier that limits its practical value to exporters.
+POLICY_OVERVIEW_END
+
+POLICY_STORY_START
+TITLE: Govt's Indo beef license celebration conveniently overlooks serious market access issue
+SOURCE: Beef Central
+URL: https://www.beefcentral.com/trade/govts-indo-beef-license-celebration-conveniently-overlooks-serious-market-access-issue/
+SUMMARY: The government announced progress on Indonesia beef export access this week, but industry analysis points to an unresolved structural barrier that the announcement did not acknowledge. For cattle producers and live exporters with exposure to the Indonesian market, the underlying constraint remains in place despite the political framing around the licence.
+POLICY_STORY_END
+
+POLICY_STORY_START
+TITLE: Qld releases plan for fuel refineries and storage
+SOURCE: Beef Central
+URL: https://www.beefcentral.com/news/qld-releases-plan-for-fuel-refineries-and-storage/
+SUMMARY: Queensland has released a plan to develop domestic fuel refinery and storage capacity, targeting the structural vulnerability in the state's fuel supply chain that has been under scrutiny this week. For producers and supply chain operators across Queensland — where road transport distances are long and fuel dependency high — the plan represents a medium-term structural response to a risk already affecting logistics costs and livestock movement decisions.
+POLICY_STORY_END

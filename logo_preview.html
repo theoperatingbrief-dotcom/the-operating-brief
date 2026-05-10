@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Operating Brief — Logo Preview</title>
+  <style>
+    body {
+      background: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 40px;
+      font-family: sans-serif;
+    }
+    .label {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .variant {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- VARIANT A: Dark square (LinkedIn company logo format) -->
+  <div class="variant">
+    <div class="label">LinkedIn Company Logo (300×300)</div>
+    <svg width="300" height="300" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background -->
+      <rect width="300" height="300" fill="#0D0D0D"/>
+
+      <!-- Top rule line -->
+      <rect x="40" y="80" width="220" height="2" fill="#C8A96E"/>
+
+      <!-- TOB Monogram -->
+      <text
+        x="150"
+        y="172"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="72"
+        font-weight="bold"
+        fill="#FFFFFF"
+        text-anchor="middle"
+        letter-spacing="8"
+      >TOB</text>
+
+      <!-- Bottom rule line -->
+      <rect x="40" y="192" width="220" height="2" fill="#C8A96E"/>
+
+      <!-- Subtitle -->
+      <text
+        x="150"
+        y="222"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="11"
+        fill="#C8A96E"
+        text-anchor="middle"
+        letter-spacing="4"
+        font-weight="400"
+      >THE OPERATING BRIEF</text>
+    </svg>
+  </div>
+
+  <!-- VARIANT B: Light/White version -->
+  <div class="variant">
+    <div class="label">Light Version</div>
+    <svg width="300" height="300" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+      <rect width="300" height="300" fill="#FFFFFF"/>
+      <rect x="40" y="80" width="220" height="2" fill="#0D0D0D"/>
+      <text
+        x="150"
+        y="172"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="72"
+        font-weight="bold"
+        fill="#0D0D0D"
+        text-anchor="middle"
+        letter-spacing="8"
+      >TOB</text>
+      <rect x="40" y="192" width="220" height="2" fill="#0D0D0D"/>
+      <text
+        x="150"
+        y="222"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="11"
+        fill="#555555"
+        text-anchor="middle"
+        letter-spacing="4"
+        font-weight="400"
+      >THE OPERATING BRIEF</text>
+    </svg>
+  </div>
+
+  <!-- VARIANT C: Gold accent on navy -->
+  <div class="variant">
+    <div class="label">Navy + Gold Version</div>
+    <svg width="300" height="300" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+      <rect width="300" height="300" fill="#0A1628"/>
+      <rect x="40" y="80" width="220" height="2" fill="#C8A96E"/>
+      <text
+        x="150"
+        y="172"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="72"
+        font-weight="bold"
+        fill="#C8A96E"
+        text-anchor="middle"
+        letter-spacing="8"
+      >TOB</text>
+      <rect x="40" y="192" width="220" height="2" fill="#C8A96E"/>
+      <text
+        x="150"
+        y="222"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="11"
+        fill="#FFFFFF"
+        text-anchor="middle"
+        letter-spacing="4"
+        font-weight="400"
+      >THE OPERATING BRIEF</text>
+    </svg>
+  </div>
+
+</body>
+</html>

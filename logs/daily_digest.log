@@ -1,0 +1,115 @@
+Fetching RSS feeds…
+  ai: 15 stories
+  podcast: 0 stories
+  world: 65 stories
+  australia: 77 stories
+  157 stories total after deduplication
+Summarising with Claude…
+  Calling claude CLI...
+Traceback (most recent call last):
+  File "/Users/rhett.nicholas/Desktop/ACN-AI-News2You/daily_digest.py", line 507, in <module>
+    main()
+    ~~~~^^
+  File "/Users/rhett.nicholas/Desktop/ACN-AI-News2You/daily_digest.py", line 472, in main
+    raw = call_claude(prompt)
+  File "/Users/rhett.nicholas/Desktop/ACN-AI-News2You/daily_digest.py", line 203, in call_claude
+    raise RuntimeError(f"claude CLI error: {result.stderr}")
+RuntimeError: claude CLI error: 
+Fetching RSS feeds…
+  ai: 51 stories
+  podcast: 3 stories
+  world: 131 stories
+  australia: 86 stories
+  bigtech: 35 stories
+  306 stories total after deduplication
+Summarising with Claude…
+  Calling claude CLI...
+Parsing response…
+Rendering HTML…
+  Social caption saved → /Users/rhett.nicholas/Desktop/ACN-AI-News2You/social_caption.txt
+
+── Quality Check ───────────────────────────────
+✅  All checks passed
+────────────────────────────────────────────────
+
+Preview saved → /Users/rhett.nicholas/Desktop/ACN-AI-News2You/preview_latest.html
+Running unattended — preview saved. Run 'python3 daily_digest.py --send' to send.
+Fetching RSS feeds…
+  ai: 42 stories
+  podcast: 1 stories
+  world: 90 stories
+  australia: 80 stories
+Filtering stories already sent in previous editions…
+  Loaded 17 URLs from previous 1 edition(s) for dedup
+  Removed 1 duplicate story/stories already sent in a previous edition
+  212 stories total after deduplication
+Summarising with Claude…
+  Calling claude CLI...
+Parsing response…
+  Subject: GPT-5.5 is now your default | The Operating Brief
+Rendering HTML…
+  Social caption saved → /Users/rhett.nicholas/Desktop/ACN-AI-News2You/social_caption.txt
+Generating Number image…
+  Number image saved → /Users/rhett.nicholas/Desktop/ACN-AI-News2You/social_images/2026-05-06_the_number.png
+
+── Quality Check ───────────────────────────────
+⚠️  No podcast episodes found
+────────────────────────────────────────────────
+
+Saving draft to Supabase…
+  Edition saved to archive: draft
+Preview saved → /Users/rhett.nicholas/Desktop/ACN-AI-News2You/preview_latest.html
+  Web preview: https://theoperatingbrief.com/preview/<PREVIEW_TOKEN>
+Running unattended — draft saved. Approve and send from the web preview.
+Fetching RSS feeds…
+  ai: 48 stories
+  podcast: 3 stories
+  world: 95 stories
+  australia: 78 stories
+Filtering stories already sent in previous editions…
+  Loaded 14 URLs from previous 1 edition(s) for dedup
+  Removed 3 duplicate story/stories already sent in a previous edition
+  221 stories total after deduplication
+Summarising with Claude…
+  Calling claude CLI...
+Parsing response…
+  Subject: AI sends Samsung past $1T | The Operating Brief
+Rendering HTML…
+  Social caption saved → /Users/rhett.nicholas/Desktop/ACN-AI-News2You/social_caption.txt
+Generating Number image…
+  Number image saved → /Users/rhett.nicholas/Desktop/ACN-AI-News2You/social_images/2026-05-07_the_number.png
+
+── Quality Check ───────────────────────────────
+✅  All checks passed
+────────────────────────────────────────────────
+
+Saving draft to Supabase…
+  Edition saved to archive: draft
+Preview saved → /Users/rhett.nicholas/Desktop/ACN-AI-News2You/preview_latest.html
+  Web preview: https://theoperatingbrief.com/preview/th9LoZeK8JUmADr7CUpzAXWQ6GFPmeVA
+Running unattended — draft saved. Approve and send from the web preview.
+Fetching RSS feeds…
+  ai: 44 stories
+  podcast: 6 stories
+  world: 104 stories
+  australia: 85 stories
+Filtering stories already sent in previous editions…
+  Loaded 14 URLs from previous 1 edition(s) for dedup
+  Removed 2 duplicate story/stories already sent in a previous edition
+  237 stories total after deduplication
+Summarising with Claude…
+  Calling claude CLI (attempt 1/3)...
+  WARN: claude timed out after 180s on attempt 1
+  Calling claude CLI (attempt 2/3)...
+  WARN: claude timed out after 180s on attempt 2
+  Calling claude CLI (attempt 3/3)...
+  WARN: claude timed out after 180s on attempt 3
+Traceback (most recent call last):
+  File "/Users/rhett.nicholas/Desktop/ACN-AI-News2You/daily_digest.py", line 981, in <module>
+    main()
+    ~~~~^^
+  File "/Users/rhett.nicholas/Desktop/ACN-AI-News2You/daily_digest.py", line 882, in main
+    raw = call_claude(prompt)
+  File "/Users/rhett.nicholas/Desktop/ACN-AI-News2You/daily_digest.py", line 347, in call_claude
+    raise RuntimeError(f"claude CLI timed out after {retries} attempts")
+RuntimeError: claude CLI timed out after 3 attempts

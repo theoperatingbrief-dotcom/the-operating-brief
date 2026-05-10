@@ -171,11 +171,12 @@ def build_prompt(entries: dict) -> str:
         "Write a 600-word briefing with four bold headings: **AI & Technology**, **Australian Business & Finance**, **World Markets & Global Business**, **The Big Picture**.",
         "Tone: sharp, punchy, no jargon, short sentences, active voice. Every sentence must earn its place — no padding.",
         "No stage directions, no script labels. Flow as clean readable prose.",
+        "IMPORTANT: Group related sentences into paragraphs of 2-4 sentences. Separate each paragraph with a blank line. Do not put every sentence on its own line.",
         "End with 1 sentence pointing readers to the full digest below.",
         "BRIEFING_END\n",
 
         "WTMFY_START",
-        "Write 1 short paragraph (max 50 words) titled 'What This Means For You'.",
+        "Write 1 short paragraph (max 50 words). Do NOT include a label or heading — start directly with the insight.",
         "Audience: time-poor Australian white-collar workers worried about AI and cost of living.",
         "Tone: empowering and reassuring — like a smart friend translating today's news into one practical thing they should know or do.",
         "Draw from the most relevant story in today's digest. No jargon. Plain language only.",
@@ -202,7 +203,7 @@ def build_prompt(entries: dict) -> str:
         "SOCIAL_CAPTION_END\n",
 
         "AI_OVERVIEW_START",
-        "2-sentence overview of the day in AI.",
+        "2-3 sentences covering the most important AI developments today. Put each sentence on its own line.",
         "AI_OVERVIEW_END\n",
 
         "Then for the 5 most important AI stories, each block formatted EXACTLY as:",
@@ -223,7 +224,7 @@ def build_prompt(entries: dict) -> str:
         "PODCAST_END\n",
 
         "WORLD_OVERVIEW_START",
-        "1-sentence snapshot of the biggest global story.",
+        "2-3 sentences covering the most important global stories today. Put each sentence on its own line.",
         "WORLD_OVERVIEW_END\n",
 
         "Then for the 3 most important world stories:",
@@ -235,7 +236,7 @@ def build_prompt(entries: dict) -> str:
         "WORLD_STORY_END\n",
 
         "AUS_OVERVIEW_START",
-        "1-sentence snapshot of the biggest Australian story.",
+        "2-3 sentences covering the most important Australian stories today. Put each sentence on its own line.",
         "AUS_OVERVIEW_END\n",
 
         "Then for the 3 most important Australian stories:",
@@ -252,7 +253,7 @@ def build_prompt(entries: dict) -> str:
     if "bigtech" in entries:
         lines += [
             "BIGTECH_OVERVIEW_START",
-            "1-sentence summary of the most important big-tech AI move this week.",
+            "2-3 sentences covering the most important big-tech AI moves this week. Put each sentence on its own line.",
             "BIGTECH_OVERVIEW_END\n",
             "Then for up to 3 big-tech stories (Microsoft/Apple/Meta/Amazon/Google/Oracle/Workday/Salesforce/SAP), each:",
             "BIGTECH_STORY_START",
@@ -275,18 +276,33 @@ def build_prompt(entries: dict) -> str:
     return "\n".join(lines)
 
 
-def call_claude(prompt: str) -> str:
-    print("  Calling claude CLI...")
+def call_claude(prompt: str, retries: int = 3, timeout: int = 180) -> str:
+    """Call the claude CLI, passing prompt via stdin."""
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-    result = subprocess.run(
-        ["claude", "-p", "-"],
-        input=prompt,
-        capture_output=True, text=True, timeout=600,
-        env=env,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"claude CLI error: {result.stderr}")
-    return result.stdout
+    home = os.path.expanduser("~")
+
+    for attempt in range(1, retries + 1):
+        print(f"  Calling claude CLI (attempt {attempt}/{retries})...")
+        try:
+            result = subprocess.run(
+                ["claude", "-p", "-", "--allowedTools", ""],
+                input=prompt,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                timeout=timeout,
+                env=env,
+                cwd=home,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"claude CLI error (rc={result.returncode})")
+            return result.stdout
+        except subprocess.TimeoutExpired:
+            print(f"  WARN: claude timed out after {timeout}s on attempt {attempt}")
+            if attempt == retries:
+                raise RuntimeError(f"claude CLI timed out after {retries} attempts")
+
+    raise RuntimeError("claude CLI failed")
 
 
 # ---------------------------------------------------------------------------
@@ -318,7 +334,7 @@ def parse_response(raw: str) -> dict:
     social = social_block[0] if social_block else {}
     return {
         "briefing":              _extract(raw, "BRIEFING"),
-        "wtmfy":                 _extract(raw, "WTMFY"),
+        "wtmfy":                 re.sub(r'^\*?\*?What This Means For You\*?\*?:?\s*', '', _extract(raw, "WTMFY"), flags=re.IGNORECASE),
         "the_number_stat":       the_number.get("stat", ""),
         "the_number_context":    the_number.get("context", ""),
         "subject_line":          _extract(raw, "SUBJECT_LINE"),
@@ -344,6 +360,12 @@ def parse_response(raw: str) -> dict:
 # ---------------------------------------------------------------------------
 def _e(s: str) -> str:
     return html.escape(s or "")
+
+
+def _paras(text: str, style: str = 'margin:0 0 16px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;') -> str:
+    """Render multi-line text as individual <p> tags, one per paragraph."""
+    paras = [p.strip() for p in re.split(r'\n{2,}', (text or "").strip()) if p.strip()]
+    return "".join(f'<p style="{style}">{_e(p)}</p>' for p in paras)
 
 
 def _story_card(i: int, item: dict, link_color: str = "#111") -> str:
@@ -390,7 +412,7 @@ def render_html(d: dict, date_str: str) -> str:
   <tr><td style="padding:0 48px 32px;">
     <p style="margin:0 0 4px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">Big Tech · Weekly Wrap</p>
     <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;border-left:3px solid #111;padding-left:10px;">This Week in Big Tech</h2>
-    <p style="margin:0 0 24px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">{_e(d['bigtech_overview'])}</p>
+    {_paras(d['bigtech_overview'], 'margin:0 0 14px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;')}
     {bigtech_cards}
   </td></tr>"""
 
@@ -401,8 +423,9 @@ def render_html(d: dict, date_str: str) -> str:
         r'</p><h3 style="margin:24px 0 8px;font-size:14px;font-weight:700;color:#111;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;border-left:3px solid #111;padding-left:10px;">\1</h3><p style="margin:0 0 16px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">',
         briefing_raw
     )
-    briefing_html = f'<p style="margin:0 0 16px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">{briefing_raw}</p>'
-    briefing_html = briefing_html.replace("\n\n", '</p><p style="margin:0 0 16px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">')
+    p_style = 'margin:0 0 16px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;'
+    paras = [p.strip() for p in re.split(r'\n{2,}', briefing_raw.strip()) if p.strip()]
+    briefing_html = "".join(f'<p style="{p_style}">{p}</p>' for p in paras)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -441,7 +464,7 @@ def render_html(d: dict, date_str: str) -> str:
   <tr><td style="padding:0 48px 32px;">
     <p style="margin:0 0 20px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">AI Stories</p>
     <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;border-left:3px solid #111;padding-left:10px;">Overview</h2>
-    <p style="margin:0 0 24px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">{_e(d['ai_overview'])}</p>
+    {_paras(d['ai_overview'], 'margin:0 0 14px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;')}
     {ai_stories_html}
   </td></tr>
 
@@ -459,7 +482,7 @@ def render_html(d: dict, date_str: str) -> str:
   <tr><td style="padding:0 48px 32px;">
     <p style="margin:0 0 20px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">World News</p>
     <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;border-left:3px solid #111;padding-left:10px;">Global Snapshot</h2>
-    <p style="margin:0 0 24px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">{_e(d['world_overview'])}</p>
+    {_paras(d['world_overview'], 'margin:0 0 14px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;')}
     {world_stories_html}
   </td></tr>
 
@@ -469,7 +492,7 @@ def render_html(d: dict, date_str: str) -> str:
   <tr><td style="padding:0 48px 32px;">
     <p style="margin:0 0 20px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">Australian News</p>
     <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;border-left:3px solid #111;padding-left:10px;">Australia Snapshot</h2>
-    <p style="margin:0 0 24px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;">{_e(d['aus_overview'])}</p>
+    {_paras(d['aus_overview'], 'margin:0 0 14px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;')}
     {aus_stories_html}
   </td></tr>
   {bigtech_html}
@@ -773,6 +796,8 @@ def main():
             return
         with open(preview_path) as f:
             html_body = f.read()
+        # Strip the social assets panel (preview-only, not for subscribers)
+        html_body = re.sub(r'<div style="background:#222.*?</div>', '', html_body, flags=re.DOTALL)
         if os.path.exists(subject_path):
             with open(subject_path) as f:
                 subject = f.read().strip() or subject

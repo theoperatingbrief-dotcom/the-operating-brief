@@ -57,3 +57,21 @@ create policy "service role can insert sports editions"
 create policy "service role can upsert sports editions"
   on sports_editions for update
   using (auth.role() = 'service_role');
+
+-- Daily sport summaries — one row per sport per day, upserted on each ingest run
+create table if not exists sports_daily_summaries (
+  id           uuid primary key default gen_random_uuid(),
+  summary_date date not null,
+  sport        text not null,
+  overview     text,
+  stories      jsonb,
+  created_at   timestamptz not null default now(),
+  unique(summary_date, sport)
+);
+
+alter table sports_daily_summaries enable row level security;
+
+create policy "service role can manage daily summaries"
+  on sports_daily_summaries for all
+  using (auth.role() = 'service_role')
+  with check (auth.role() = 'service_role');

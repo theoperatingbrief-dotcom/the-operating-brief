@@ -1,0 +1,104 @@
+BRIEFING_START
+
+The ASX 200 fell 1.51% to 8,744.4 in the prior session, its sharpest single-day move in recent weeks, with broad-based selling across financials, listed property, and technology leaving the benchmark well below its recent range. Wall Street's overnight recovery provides a constructive lead for today's open — the S&P 500 gained 0.84% to 7,398.9 and the Nasdaq surged 1.71% to 26,247.1, with large-cap technology names including Nvidia and Apple pushing to new record highs. The AUD/USD strengthened 0.57% to 0.7250, a positive signal for risk appetite that should translate to broader ASX support at the 10:00am open.
+
+The dominant macro theme is US Federal Reserve rate timing and its implications for Australian yield-sensitive stocks. Bank of America now forecasts no Fed cuts until at least 2027, citing consecutive positive nonfarm payrolls and a labour market that removes urgency for near-term easing. The US 10-year yield fell to 4.36%, down 0.64% overnight, providing modest relief for the sectors hit hardest in the prior session — Westpac shed 2.93% to $37.44, NAB fell 2.91% to $38.36, and A-REITs Stockland and GPT Group each declined more than 3%.
+
+Watch Westpac and NAB at open for stabilisation, with the softer yield backdrop the most direct catalyst for the two hardest-hit major banks from Friday's session. Copper's 1.98% overnight gain to $6.25 and gold at $4,720.40 provide a supportive environment for the materials sector — Newmont (NEM, $160.35) warrants attention given precious metals strength, and WiseTech (WTC, $42.27) may partially recover after its 4.63% decline given the Nasdaq's 1.71% overnight surge.
+
+BRIEFING_END
+
+ASX_OVERVIEW_START
+ASX banks led broad selling in the prior session — Westpac fell 2.93% to $37.44 and NAB dropped 2.91% to $38.36 — while A-REITs Stockland and GPT each shed more than 3%, though US overnight gains and a fall in the US 10-year yield to 4.36% point to a partial recovery at open.
+ASX_OVERVIEW_END
+
+ASX_STORY_START
+TITLE: ASX Stocks Are in the Midst of a Tough Lesson
+SOURCE: Australian Financial Review
+URL: https://www.afr.com/markets/equity-markets/australia-s-sharemarket-is-in-the-midst-of-a-tough-lesson-20260430-p5zsip
+SUMMARY: The AFR reports Australian equities are underperforming global peers, caught between Wall Street's momentum-driven record run and domestic headwinds weighing on earnings and valuations. The divergence is most visible in financials and property, where selling pressure has been concentrated despite a broadly constructive global backdrop.
+ASX_STORY_END
+
+ASX_STORY_START
+TITLE: Packer Emerges as OnlyFans Backer in $4.3b Deal
+SOURCE: Australian Financial Review
+URL: https://www.afr.com/technology/packer-emerges-as-onlyfans-backer-in-4-3b-deal-report-20260509-p5zv8n
+SUMMARY: James Packer has emerged as a backer in a reported $4.3 billion deal involving OnlyFans, according to the AFR. The transaction marks a significant deployment of Australian capital into offshore digital platform M&A at scale.
+ASX_STORY_END
+
+ASX_STORY_START
+TITLE: Albanese Policy Settings Raise Capital Formation Concerns
+SOURCE: Australian Financial Review
+URL: https://www.afr.com/politics/federal/albanese-s-war-on-capital-an-assault-on-aspiration-20260510-p5zvdz
+SUMMARY: AFR commentary argues the Albanese government's tax and regulatory stance represents a structural headwind for Australian investment returns and capital formation. The piece raises long-term implications for business investment appetite and the earnings environment for ASX-listed companies operating domestically.
+ASX_STORY_END
+
+MACRO_OVERVIEW_START
+Bank of America forecasts the US Federal Reserve will hold interest rates until at least 2027, citing consecutive positive nonfarm payrolls prints and a labour market that removes the case for near-term easing — a materially more hawkish call than market consensus.
+MACRO_OVERVIEW_END
+
+MACRO_STORY_START
+TITLE: Fed Unlikely to Cut Interest Rates Until 2027, Bank of America Says
+SOURCE: Mal Financial (via Google News)
+URL: https://news.google.com/rss/articles/CBMibEFVX3lxTE5td3hGcElxeTJfZll4T0xpcnRFTkt0aXFOMmFEOFptSTRBakdBVnJ6NHNGekN2SS01YU1LVWlpRFhSdFYxX2EwM0FlNDRmOWVETjQxSjdncVBybGRHRkU4X1ljcE04ZzRPWk9vTQ?oc=5
+SUMMARY: Bank of America analysts forecast the Federal Reserve will not cut interest rates until 2027, a significantly more hawkish stance than current market pricing. The call increases pressure on ASX yield-sensitive sectors — notably banks, A-REITs, and infrastructure — which sold off sharply in the prior session.
+MACRO_STORY_END
+
+MACRO_STORY_START
+TITLE: Nonfarm Payrolls Post First Consecutive Positive Growth of 2026
+SOURCE: TradingKey (via Google News)
+URL: https://news.google.com/rss/articles/CBMi0AFBVV95cUxOLVNBdk9fbkZKLUtBR05SQXZIdVEyRTNJVkJIZjZFT1hVQ3Y2b3JjTThoWldPWEFsUi1JLVdfOWpPOWtOOFlZUjFpb2J2cWtoY1Ryc1dYUlRvMlNzMkltOTFfajQtSWkzNmNnRGk0Q1hzbTQzeWZSQXVfckdRcjRsQm9QTFJRdU5RWHhMeUJBMFFqTnFQaFVRZldHQUVUUlBsVmF6b3ROVFp4NFZ0LW9JWmNGU3h4S0dLVFUyY1FCRmtnY1dWQ0hyaEJmQUhzZF9n?oc=5
+SUMMARY: US nonfarm payrolls recorded consecutive months of positive growth for the first time in 2026, signalling labour market stabilisation and reducing the probability of near-term Fed easing. The data underpins the Bank of America 2027 rate-cut call and has shifted Fed policy expectations further toward a prolonged hold.
+MACRO_STORY_END
+
+MACRO_STORY_START
+TITLE: Fed's Goolsbee Warns AI Boom Could Produce Stagflation If It Disappoints
+SOURCE: Barron's (via Google News)
+URL: https://news.google.com/rss/articles/CBMigwFBVV95cUxNZjlWV0k2aVlIN3Y2dzExS0NJa3BTOVozNU9kTURmTmhUSU1DLTFYczVZeWtEV0pwanNoM21CZmlSWThPNFFzWTNNOVBScFFkNHBDTUcxVURSdXJ0SjVIWHNGSjNWQ2ZldmVITGl2eGloSUdSYWRhWElFbTJHZTVxc3NGTQ?oc=5
+SUMMARY: Chicago Fed President Austan Goolsbee warned that the AI investment boom could trigger stagflation if anticipated productivity gains fail to materialise, adding a cautionary note to technology's momentum-driven rally. The warning is relevant for ASX-listed technology stocks — and the Nasdaq's 1.71% overnight surge — given the scale of AI capital expenditure now flowing through corporate balance sheets.
+MACRO_STORY_END
+
+COMMODITY_OVERVIEW_START
+Gold held at $4,720.40, up 0.44% overnight, while copper surged 1.98% to $6.25 — copper's move is the most direct support for ASX-listed miners heading into today's session.
+COMMODITY_OVERVIEW_END
+
+COMMODITY_STORY_START
+TITLE: Gold Price Outlook 2026: Safe-Haven Demand and Financial Risks
+SOURCE: LinkedIn (via Google News)
+URL: https://news.google.com/rss/articles/CBMimgFBVV95cUxOV05JM1RoNU44SjFuWkd0N0YyTWwwZGtpWEIzcWJPYnV0aTlSRGNBY2hEUWdDODMzWUM5Vm5melpYTnpSWXVndG5VQXVzZkVEUk9wdURXdVdyYkJfLWVuUEk1dnZQWmFEODZnVVNxWWFkSjhBT1VhM2o2Tjk4WkptRUdNN09fbWpOSG9DcWNFZWRmVmsyNVprM0JB?oc=5
+SUMMARY: Gold is trading at $4,720.40, sustained above $4,700 by ongoing safe-haven demand and elevated financial market uncertainty heading into the second half of 2026. For ASX-listed gold producers including Newmont (NEM, $160.35), the price level supports strong margin visibility and earnings quality.
+COMMODITY_STORY_END
+
+COMMODITY_STORY_START
+TITLE: Silver Outshines Gold Amid Global Uncertainty and Volatility
+SOURCE: The New Indian Express (via Google News)
+URL: https://news.google.com/rss/articles/CBMixwFBVV95cUxPakdGUWRlTkQ0UnBmRUF3ZXF0dFhBRHFRLTJyYTNBTmhFejlTdzVELWVNclp6dHlfWG95N1ByMEZfSlV4dmxqSDhLNkc3ai01eXJBX05JMnVOYkYxeEhwZXpzX1FxMFpZNGtfQl94OUpjbFB2MG1rY25ncmlFSW9ZdXB2c0JuRjRIdDVUd3NmOVNkZGlFSk82a3E5VG9iNTBmS0RRZjJlYUx0V1NhaEYxdmpwQjMwVU5xVFBoOWdrQmpDcDZuWkcw?oc=5
+SUMMARY: Silver outperformed gold over the past week as global volatility and uncertainty drove flows into the broader precious metals complex. The move reinforces a constructive backdrop for ASX materials names with silver or gold exposure, including diversified miners entering today's session with copper also up 1.98%.
+COMMODITY_STORY_END
+
+GLOBAL_OVERVIEW_START
+The S&P 500 gained 0.84% to 7,398.9 and the Nasdaq surged 1.71% to 26,247.1 overnight, with Nvidia and Apple reaching new record highs, providing the most positive Wall Street lead for the ASX in weeks.
+GLOBAL_OVERVIEW_END
+
+GLOBAL_STORY_START
+TITLE: S&P 500 Melts Up to Yet Another Record High as Momentum Rules
+SOURCE: Australian Financial Review
+URL: https://www.afr.com/markets/equity-markets/nvidia-apple-reset-record-highs-as-us-stocks-melt-ever-higher-20260509-p5zv8l
+SUMMARY: The S&P 500 closed at 7,398.9, up 0.84%, and the Nasdaq added 1.71% to 26,247.1 as Nvidia and Apple reset record highs in momentum-driven trade. The overnight US session provides a direct positive lead for ASX technology names and should ease the valuation pressure that drove WiseTech down 4.63% on Friday.
+GLOBAL_STORY_END
+
+GLOBAL_STORY_START
+TITLE: Norway Doubles Down on Oil and Gas Production
+SOURCE: The Guardian
+URL: https://www.theguardian.com/world/2026/may/09/norway-oil-and-gas-production-shortages-middle-east-ukraine
+SUMMARY: Norway announced plans to expand oil and gas output, citing energy security needs for Europe amid ongoing Middle East and Ukraine tensions. The supply increase is a headwind for crude prices — WTI is at $95.42, up 0.64% — but sustained energy demand signals a supportive backdrop for ASX-listed producers including Woodside and Santos.
+GLOBAL_STORY_END
+
+THE_NUMBER_START
+STAT: $4,720.40
+CONTEXT: Gold's overnight price — up 0.44% and holding above $4,700 — underpins earnings visibility for ASX-listed gold producers including Newmont, and signals that safe-haven demand remains a dominant force in global markets.
+THE_NUMBER_END
+
+SUBJECT_LINE_START
+Gold $4,720; ASX set to recover | The Markets Brief
+SUBJECT_LINE_END
