@@ -418,6 +418,7 @@ def build_briefing_prompt(sport_summaries: dict, mode: str) -> str:
     lines = [
         "You are writing the opening briefing for a weekend sports digest.",
         instr,
+        "Australian audience — lead with NRL and AFL, then other sports. Do not open with F1 or international sports.\n",
         "No bullet points, no bold headings, no sport labels. Flowing prose only.\n",
         "BRIEFING_START",
         "[3-4 paragraphs separated by blank lines]",
