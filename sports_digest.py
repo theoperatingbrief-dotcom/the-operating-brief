@@ -852,7 +852,8 @@ def main():
 
     # --- COMPILE / SEND MODE ---
     subject = f"The Sporting Brief – {edition_label} – {date_str}"
-    digest, scores_structured = compile_digest(mode)
+    days_back = 7 if mode == "wrap" else 5
+    digest, scores_structured = compile_digest(mode, days_back=days_back)
 
     print("Rendering HTML…")
     html_body = render_html(digest, date_str, edition_label, scores=scores_structured)
