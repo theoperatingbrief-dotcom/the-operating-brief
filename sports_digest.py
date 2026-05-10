@@ -853,6 +853,10 @@ def main():
         run_ingest(mode, backfill=getattr(args, "backfill", False))
         return
 
+    # Always ingest fresh data before compiling
+    print("Ingesting fresh data…")
+    run_ingest(mode, backfill=False)
+
     # --- COMPILE / SEND MODE ---
     subject = f"The Sporting Brief – {edition_label} – {date_str}"
     days_back = 7 if mode == "wrap" else 5
