@@ -335,7 +335,7 @@ SPORT_SECTIONS = [
     ("football", "Football/Soccer",            "FOOTBALL",  8, ""),
     ("cricket",  "Cricket",                    "CRICKET",   5,
      "Australian Men's and Women's national teams only, plus Australians in the IPL. Ignore County Championship and non-Australian domestic cricket."),
-    ("f1",       "Formula 1",                  "F1",        5, "RESULT format: 'Winner: Name, P2: Name' or omit. If no race or sprint took place this weekend, write exactly: NO_CONTENT"),
+    ("f1",       "Formula 1",                  "F1",        5, "RESULT format: 'Winner: Name, P2: Name' or omit. Only report if a race or sprint took place in the last 3 days. If no race or sprint took place in the last 3 days, write exactly: NO_CONTENT"),
     ("nba",      "NBA",                        "NBA",       5, ""),
     ("us_sport", "MLB/NHL",                    "US_SPORT",  5, ""),
     ("golf",     "Golf",                       "GOLF",      5, "RESULT format: 'Leader: Name -12' or omit."),
@@ -418,7 +418,7 @@ def build_briefing_prompt(sport_summaries: dict, mode: str) -> str:
     lines = [
         "You are writing the opening briefing for a weekend sports digest.",
         instr,
-        "Australian audience — lead with NRL and AFL, then other sports. Do not open with F1 or international sports.\n",
+        "Australian audience — lead with AFL and NRL, then other sports. Do not open with F1 or international sports.\n",
         "No bullet points, no bold headings, no sport labels. Flowing prose only.\n",
         "BRIEFING_START",
         "[3-4 paragraphs separated by blank lines]",
