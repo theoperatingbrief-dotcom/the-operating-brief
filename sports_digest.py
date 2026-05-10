@@ -335,7 +335,7 @@ SPORT_SECTIONS = [
     ("football", "Football/Soccer",            "FOOTBALL",  8, ""),
     ("cricket",  "Cricket",                    "CRICKET",   5,
      "Australian Men's and Women's national teams only, plus Australians in the IPL. Ignore County Championship and non-Australian domestic cricket."),
-    ("f1",       "Formula 1",                  "F1",        5, "RESULT format: 'Winner: Name, P2: Name' or omit."),
+    ("f1",       "Formula 1",                  "F1",        5, "RESULT format: 'Winner: Name, P2: Name' or omit. If no race or sprint took place this weekend, write exactly: NO_CONTENT"),
     ("nba",      "NBA",                        "NBA",       5, ""),
     ("us_sport", "MLB/NHL",                    "US_SPORT",  5, ""),
     ("golf",     "Golf",                       "GOLF",      5, "RESULT format: 'Leader: Name -12' or omit."),
@@ -410,7 +410,7 @@ def build_briefing_prompt(sport_summaries: dict, mode: str) -> str:
             "Write a WEEKEND WRAP in 3-4 paragraphs. Podcast presenter voice — conversational but authoritative.\n"
             "Cover the 4-6 most significant stories. Specific names and scores required — e.g. 'Antonelli won Miami' not 'a driver extended their lead'.\n"
             "Group related stories into the same paragraph. Separate each paragraph with a blank line. Do not put every sentence on its own line.\n"
-            "End with a sentence on what's coming up next weekend."
+            "Do not add a closing sentence about what is coming up — end on the last result."
         )
 
     lines = [
@@ -589,7 +589,8 @@ def render_html(d: dict, date_str: str, edition_label: str = "Weekend Wrap", sco
         _section("AFL", d["afl_overview"], d["afl_stories"][:3], results_html=afl_table) +
         _section("Football", d["football_overview"], d["football_stories"][:3]) +
         _section("Cricket", d["cricket_overview"], d["cricket_stories"][:2]) +
-        _section("Formula 1", d["f1_overview"], d["f1_stories"][:2]) +
+        (_section("Formula 1", d["f1_overview"], d["f1_stories"][:2])
+         if d.get("f1_overview", "").strip().upper() != "NO_CONTENT" else "") +
         _section("NBA", d["nba_overview"], d["nba_stories"][:2]) +
         _section("MLB / NHL", d["us_sport_overview"], d["us_sport_stories"][:2]) +
         _section("Golf", d["golf_overview"], d["golf_stories"][:2]) +
