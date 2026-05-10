@@ -29,9 +29,13 @@ FEEDS = {
         "https://www.afr.com/rss/feed.xml",
         "https://www.abc.net.au/news/feed/2942820/rss.xml",
         "https://www.smh.com.au/rss/business.xml",
-        "https://www.theguardian.com/australia-news/rss",
+        "https://www.livewiremarkets.com/feed",
+        "https://www.fool.com.au/feed/",
         "https://news.google.com/rss/search?q=ASX+Australia+shares+stocks+earnings&hl=en-AU&gl=AU&ceid=AU:en",
-        "https://news.google.com/rss/search?q=ASX+company+results+announcement&hl=en-AU&gl=AU&ceid=AU:en",
+        "https://news.google.com/rss/search?q=ASX+company+results+announcement+today&hl=en-AU&gl=AU&ceid=AU:en",
+        "https://news.google.com/rss/search?q=ASX+200+market+open+Australian+shares&hl=en-AU&gl=AU&ceid=AU:en",
+        "https://news.google.com/rss/search?q=BHP+CBA+CSL+Macquarie+Wesfarmers+ASX&hl=en-AU&gl=AU&ceid=AU:en",
+        "https://news.google.com/rss/search?q=ASX+mining+banks+resources+sector&hl=en-AU&gl=AU&ceid=AU:en",
     ],
     "macro": [
         "https://www.rba.gov.au/rss/rss-cb-speeches.xml",
@@ -39,9 +43,11 @@ FEEDS = {
         "https://feeds.reuters.com/reuters/businessNews",
         "https://www.theguardian.com/business/rss",
         "https://news.google.com/rss/search?q=RBA+interest+rates+Australia+economy&hl=en-AU&gl=AU&ceid=AU:en",
+        "https://news.google.com/rss/search?q=Australia+ABS+GDP+employment+inflation+data&hl=en-AU&gl=AU&ceid=AU:en",
         "https://news.google.com/rss/search?q=Federal+Reserve+Fed+interest+rates&hl=en-AU&gl=AU&ceid=AU:en",
         "https://news.google.com/rss/search?q=inflation+CPI+GDP+economy+data&hl=en-AU&gl=AU&ceid=AU:en",
         "https://news.google.com/rss/search?q=China+economy+growth+stimulus+PBOC&hl=en-AU&gl=AU&ceid=AU:en",
+        "https://news.google.com/rss/search?q=Australia+budget+treasury+government+fiscal&hl=en-AU&gl=AU&ceid=AU:en",
     ],
     "global_markets": [
         "https://feeds.marketwatch.com/marketwatch/topstories/",
@@ -86,31 +92,51 @@ MARKET_TICKERS = [
     {"name": "Bitcoin",   "ticker": "BTC-USD",  "type": "crypto",    "group": "Crypto"},
 ]
 
-# Top ASX stocks for market movers (by market cap)
+# Top ASX stocks for market movers (by market cap, covering major sectors)
 ASX_WATCHLIST = [
-    "BHP.AX", "CBA.AX", "CSL.AX", "WBC.AX", "ANZ.AX", "NAB.AX", "RIO.AX",
-    "WDS.AX", "MQG.AX", "WES.AX", "GMG.AX", "TLS.AX", "FMG.AX", "REA.AX",
-    "ALL.AX", "COL.AX", "WOW.AX", "QBE.AX", "STO.AX", "IAG.AX", "TWE.AX",
-    "MPL.AX", "ORI.AX", "APA.AX", "TCL.AX", "SHL.AX", "CPU.AX", "AMC.AX",
-    "S32.AX", "MIN.AX", "PLS.AX", "XRO.AX", "SEK.AX", "CAR.AX", "ASX.AX",
-    "AGL.AX", "ORG.AX", "SUN.AX", "RHC.AX", "NEM.AX",
+    # Big 4 banks + Macquarie
+    "CBA.AX", "WBC.AX", "ANZ.AX", "NAB.AX", "MQG.AX",
+    # Resources & mining
+    "BHP.AX", "RIO.AX", "FMG.AX", "S32.AX", "MIN.AX", "WDS.AX", "STO.AX",
+    "NEM.AX", "PLS.AX", "IGO.AX", "LYC.AX", "WHC.AX", "ALD.AX",
+    # Healthcare & biotech
+    "CSL.AX", "RHC.AX", "SHL.AX", "COH.AX", "RMD.AX", "MPL.AX",
+    # Consumer & retail
+    "WES.AX", "WOW.AX", "COL.AX", "TWE.AX", "JBH.AX",
+    # Tech & growth
+    "XRO.AX", "SEK.AX", "CAR.AX", "REA.AX", "WTC.AX", "TNE.AX",
+    # Infrastructure & utilities
+    "TCL.AX", "APA.AX", "AGL.AX", "ORG.AX", "TLS.AX",
+    # Insurance & financial services
+    "QBE.AX", "IAG.AX", "SUN.AX", "CPU.AX", "ASX.AX",
+    # Property & industrial
+    "GMG.AX", "SGP.AX", "GPT.AX", "AMC.AX", "ORI.AX",
+    # Other large-cap
+    "ALL.AX", "QAN.AX", "RHC.AX",
 ]
+ASX_WATCHLIST = list(dict.fromkeys(ASX_WATCHLIST))  # dedupe while preserving order
 
 ASX_NAMES = {
-    "BHP.AX": "BHP", "CBA.AX": "CommBank", "CSL.AX": "CSL",
-    "WBC.AX": "Westpac", "ANZ.AX": "ANZ", "NAB.AX": "NAB",
-    "RIO.AX": "Rio Tinto", "WDS.AX": "Woodside", "MQG.AX": "Macquarie",
-    "WES.AX": "Wesfarmers", "GMG.AX": "Goodman Group", "TLS.AX": "Telstra",
-    "FMG.AX": "Fortescue", "REA.AX": "REA Group", "ALL.AX": "Aristocrat",
-    "COL.AX": "Coles", "WOW.AX": "Woolworths", "QBE.AX": "QBE",
-    "STO.AX": "Santos", "IAG.AX": "IAG", "TWE.AX": "Treasury Wine",
-    "MPL.AX": "Medibank", "ORI.AX": "Orica", "APA.AX": "APA Group",
-    "TCL.AX": "Transurban", "SHL.AX": "Sonic Healthcare", "CPU.AX": "Computershare",
-    "AMC.AX": "Amcor", "S32.AX": "South32", "MIN.AX": "Mineral Resources",
-    "PLS.AX": "Pilbara Minerals", "XRO.AX": "Xero", "SEK.AX": "Seek",
-    "CAR.AX": "CAR Group", "ASX.AX": "ASX Ltd", "AGL.AX": "AGL Energy",
-    "ORG.AX": "Origin Energy", "SUN.AX": "Suncorp", "RHC.AX": "Ramsay Health",
-    "NEM.AX": "Newmont",
+    "CBA.AX": "CommBank", "WBC.AX": "Westpac", "ANZ.AX": "ANZ",
+    "NAB.AX": "NAB", "MQG.AX": "Macquarie",
+    "BHP.AX": "BHP", "RIO.AX": "Rio Tinto", "FMG.AX": "Fortescue",
+    "S32.AX": "South32", "MIN.AX": "Mineral Resources", "WDS.AX": "Woodside",
+    "STO.AX": "Santos", "NEM.AX": "Newmont", "PLS.AX": "Pilbara Minerals",
+    "IGO.AX": "IGO", "LYC.AX": "Lynas Rare Earths", "WHC.AX": "Whitehaven Coal",
+    "ALD.AX": "Ampol",
+    "CSL.AX": "CSL", "RHC.AX": "Ramsay Health", "SHL.AX": "Sonic Healthcare",
+    "COH.AX": "Cochlear", "RMD.AX": "ResMed", "MPL.AX": "Medibank",
+    "WES.AX": "Wesfarmers", "WOW.AX": "Woolworths", "COL.AX": "Coles",
+    "TWE.AX": "Treasury Wine", "JBH.AX": "JB Hi-Fi",
+    "XRO.AX": "Xero", "SEK.AX": "Seek", "CAR.AX": "CAR Group",
+    "REA.AX": "REA Group", "WTC.AX": "WiseTech", "TNE.AX": "Technology One",
+    "TCL.AX": "Transurban", "APA.AX": "APA Group", "AGL.AX": "AGL Energy",
+    "ORG.AX": "Origin Energy", "TLS.AX": "Telstra",
+    "QBE.AX": "QBE", "IAG.AX": "IAG", "SUN.AX": "Suncorp",
+    "CPU.AX": "Computershare", "ASX.AX": "ASX Ltd",
+    "GMG.AX": "Goodman Group", "SGP.AX": "Stockland", "GPT.AX": "GPT Group",
+    "AMC.AX": "Amcor", "ORI.AX": "Orica",
+    "ALL.AX": "Aristocrat", "QAN.AX": "Qantas",
 }
 
 
@@ -220,8 +246,8 @@ def fetch_asx_movers() -> tuple[str, list[dict], list[dict]]:
             })
 
         moves.sort(key=lambda x: x["pct"], reverse=True)
-        gainers = moves[:5]
-        losers  = list(reversed(moves[-5:]))
+        gainers = moves[:8]
+        losers  = list(reversed(moves[-8:]))
 
         lines = ["=== ASX MARKET MOVERS (previous session) ===\n", "Top Gainers:"]
         for m in gainers:
@@ -305,40 +331,40 @@ def build_prompt(entries: dict, market_data: str, movers_text: str) -> str:
         "5. Australian perspective — lead with ASX implications of overnight moves.\n",
 
         "BRIEFING_START",
-        "Write a 180-word pre-market opening note.",
-        "Paragraph 1 (2-3 sentences): What happened overnight in US markets — key index moves with specific numbers.",
-        "Paragraph 2 (2-3 sentences): The dominant macro theme or event from the last 24 hours (RBA, Fed, economic data, geopolitical). Be specific.",
-        "Paragraph 3 (1-2 sentences): What to watch when the ASX opens — implied direction, key sectors or stocks on the radar.",
+        "Write a 180-word pre-market opening note. Australian investors are the audience — frame everything through an ASX lens.",
+        "Paragraph 1 (2-3 sentences): ASX implied direction at open — what happened overnight in the US and how it flows through to Australian stocks and sectors. Use specific index levels.",
+        "Paragraph 2 (2-3 sentences): The dominant Australian or macro theme right now (RBA, ABS data, commodity moves, Chinese demand, Australian earnings). Be specific — name the event, number, or company.",
+        "Paragraph 3 (1-2 sentences): Two or three specific ASX stocks or sectors to watch at open and the precise reason why.",
         "Separate paragraphs with a blank line. No headings. No bullet points.",
         "BRIEFING_END\n",
 
-        "MACRO_OVERVIEW_START",
-        "1-sentence factual summary of the most important macro/policy development in the last 24 hours. Name the specific central bank, data release, or event.",
-        "MACRO_OVERVIEW_END\n",
-
-        "2-3 most important macro & policy stories (RBA, Fed, ECB, economic data, government policy):",
-        "MACRO_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nSUMMARY: <2 sentences — include the specific number or decision>\nMACRO_STORY_END\n",
-
         "ASX_OVERVIEW_START",
-        "1-sentence snapshot of the key ASX story or theme to watch today. Name specific companies or sectors if possible.",
+        "1-sentence snapshot of the single most important ASX story or theme today. Name specific companies, sectors, or data if possible.",
         "ASX_OVERVIEW_END\n",
 
-        "2-3 most important ASX stories (earnings, company announcements, sector moves, M&A):",
-        "ASX_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nSUMMARY: <2 sentences — include specific company name and any financial figures>\nASX_STORY_END\n",
+        "3 most important ASX stories (earnings, company announcements, sector moves, M&A, broker calls — Australian companies only):",
+        "ASX_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nSUMMARY: <2 sentences — name the company, include specific financial figures or % moves>\nASX_STORY_END\n",
 
-        "GLOBAL_OVERVIEW_START",
-        "1-sentence summary of the most significant overnight development in US or European markets (beyond the index level).",
-        "GLOBAL_OVERVIEW_END\n",
+        "MACRO_OVERVIEW_START",
+        "1-sentence factual summary of the most important macro/policy development in the last 24 hours. Prioritise Australian data (RBA, ABS) over offshore. Name the specific central bank, data release, or event.",
+        "MACRO_OVERVIEW_END\n",
 
-        "2-3 most important global markets stories (Wall Street earnings, sector moves, international macro):",
-        "GLOBAL_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nSUMMARY: <2 sentences — include specific company, index, or figure>\nGLOBAL_STORY_END\n",
+        "2-3 most important macro & policy stories (prioritise: RBA, ABS data, Australian government; then Fed/ECB, global data):",
+        "MACRO_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nSUMMARY: <2 sentences — include the specific number or decision>\nMACRO_STORY_END\n",
 
         "COMMODITY_OVERVIEW_START",
-        "1-sentence snapshot covering the most significant commodity move in the last 24 hours. Name the commodity and give the price or % move.",
+        "1-sentence snapshot of the most significant commodity move. Prioritise iron ore, coal, and LNG — the commodities that drive Australian export earnings and ASX mining stocks.",
         "COMMODITY_OVERVIEW_END\n",
 
-        "1-2 most important commodity stories (iron ore, oil, gold, copper, energy — prioritise those relevant to Australian miners):",
-        "COMMODITY_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nSUMMARY: <2 sentences — include specific commodity and price direction>\nCOMMODITY_STORY_END\n",
+        "2 most important commodity stories (iron ore, coal, LNG, oil, gold, copper — weight toward Australian export commodities):",
+        "COMMODITY_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nSUMMARY: <2 sentences — include specific commodity, price direction, and ASX implication>\nCOMMODITY_STORY_END\n",
+
+        "GLOBAL_OVERVIEW_START",
+        "1-sentence summary of the most significant overnight development in US or European markets that Australian investors need to know about.",
+        "GLOBAL_OVERVIEW_END\n",
+
+        "2 most important global markets stories (Wall Street earnings, sector moves — only include if directly relevant to ASX or Australian portfolio exposure):",
+        "GLOBAL_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nSUMMARY: <2 sentences — include specific company, index, or figure and why it matters for Australian investors>\nGLOBAL_STORY_END\n",
 
         "THE_NUMBER_START",
         "STAT: <one standout market stat from today — short and punchy, max 4 words. Examples: '-2.3%', '$3,420/oz', '4.34%'. Just the figure.>",
@@ -566,10 +592,10 @@ def render_html(d: dict, date_str: str, market_data: list[dict], gainers: list[d
     movers_html   = _movers_html(gainers, losers)
 
     sections_html = (
-        _section("Macro & Policy", d["macro_overview"], d["macro_stories"][:3]) +
         _section("ASX Focus", d["asx_overview"], d["asx_stories"][:3]) +
-        _section("Global Markets", d["global_overview"], d["global_stories"][:3]) +
-        _section("Commodities", d["commodity_overview"], d["commodity_stories"][:2])
+        _section("Macro & Policy", d["macro_overview"], d["macro_stories"][:3]) +
+        _section("Commodities", d["commodity_overview"], d["commodity_stories"][:2]) +
+        _section("Global Markets", d["global_overview"], d["global_stories"][:2])
     )
 
     the_number_html = ""
