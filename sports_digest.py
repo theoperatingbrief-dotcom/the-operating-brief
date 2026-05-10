@@ -592,12 +592,12 @@ def render_html(d: dict, date_str: str, edition_label: str = "Weekend Wrap", sco
         _section("Football", d["football_overview"], d["football_stories"][:3]) +
         _section("Cricket", d["cricket_overview"], d["cricket_stories"][:2]) +
         (_section("Formula 1", d["f1_overview"], d["f1_stories"][:2])
-         if d.get("f1_overview", "").strip().upper() != "NO_CONTENT" else "") +
+         if d.get("f1_overview", "").strip().upper() not in ("NO_CONTENT", "") else "") +
         _section("NBA", d["nba_overview"], d["nba_stories"][:2]) +
         _section("MLB / NHL", d["us_sport_overview"], d["us_sport_stories"][:2]) +
         _section("Golf", d["golf_overview"], d["golf_stories"][:2]) +
         (_section("AI, Business & Technology", d["ai_sport_overview"], d["ai_sport_stories"][:2])
-         if d.get("ai_sport_overview", "").strip().upper() != "NO_CONTENT" else "")
+         if d.get("ai_sport_overview", "").strip().upper() not in ("NO_CONTENT", "") else "")
     )
 
     return f"""<!DOCTYPE html>
