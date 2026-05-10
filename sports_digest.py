@@ -400,16 +400,18 @@ def build_briefing_prompt(sport_summaries: dict, mode: str) -> str:
     is_preview = mode == "preview"
     if is_preview:
         instr = (
-            "Write a WEEK PREVIEW in 3-4 paragraphs. Podcast presenter voice — conversational but authoritative.\n"
+            "Write a WEEK PREVIEW in 3-4 paragraphs. News reporter tone — factual and direct, not conversational or dramatic.\n"
             "Cover the 4-6 most significant upcoming fixtures. Group related fixtures into the same paragraph.\n"
             "Separate each paragraph with a blank line. Do not put every sentence on its own line.\n"
+            "No colour commentary, no metaphors, no editorial opinion. State the facts: who is playing, what is at stake, what the form says.\n"
             "End with a sentence on what to watch for this weekend."
         )
     else:
         instr = (
-            "Write a WEEKEND WRAP in 3-4 paragraphs. Podcast presenter voice — conversational but authoritative.\n"
+            "Write a WEEKEND WRAP in 3-4 paragraphs. News reporter tone — factual and direct, not conversational or dramatic.\n"
             "Cover the 4-6 most significant stories. Specific names and scores required — e.g. 'Antonelli won Miami' not 'a driver extended their lead'.\n"
             "Group related stories into the same paragraph. Separate each paragraph with a blank line. Do not put every sentence on its own line.\n"
+            "No colour commentary, no metaphors, no editorial opinion. Report what happened: who won, by how much, what it means in the standings.\n"
             "Do not add a closing sentence about what is coming up — end on the last result."
         )
 
