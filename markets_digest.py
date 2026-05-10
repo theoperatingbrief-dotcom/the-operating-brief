@@ -317,10 +317,19 @@ def _dedupe(entries):
 # ---------------------------------------------------------------------------
 # Claude CLI summarisation
 # ---------------------------------------------------------------------------
-def build_prompt(entries: dict, market_data: str, movers_text: str) -> str:
+def build_prompt(entries: dict, market_data: str, movers_text: str, day_of_week: str = "") -> str:
+    is_monday = day_of_week.lower() == "monday"
+    us_session_ref = "on Friday" if is_monday else "overnight"
+    monday_note = (
+        "NOTE: Today is Monday. Wall Street closed on Friday — do not use the word 'overnight'. "
+        "Reference Friday's session directly (e.g. 'Wall Street closed Friday with...', 'Friday's US session delivered...'). "
+        "Where relevant, acknowledge that Australian investors are returning from the weekend.\n"
+    ) if is_monday else ""
+
     lines = [
         "You are producing a daily pre-market financial briefing for Australian investors and professionals.",
         "The ASX opens at 10:00am AEST. This brief is sent at 7:30am AEST, before market open.",
+        monday_note,
         "Based on the market data and stories below, produce output in EXACTLY this format — no extra text:\n",
 
         "GLOBAL RULES:",
@@ -328,11 +337,11 @@ def build_prompt(entries: dict, market_data: str, movers_text: str) -> str:
         "2. If a number is not in the source data, omit it. Do not guess or approximate.",
         "3. Pure information — no editorial framing, no dramatic language, no vague descriptors.",
         "4. Short sentences. Active voice. Every word must earn its place.",
-        "5. Australian perspective — lead with ASX implications of overnight moves.\n",
+        f"5. Australian perspective — lead with ASX implications of {us_session_ref}'s US moves.\n",
 
         "BRIEFING_START",
         "Write a 300-word pre-market opening note. Australian investors are the audience — frame everything through an ASX lens.",
-        "Paragraph 1 (2-3 sentences): ASX implied direction at open — what happened overnight in the US and how it flows through to Australian stocks and sectors. Use specific index levels.",
+        f"Paragraph 1 (2-3 sentences): ASX implied direction at open — what happened {us_session_ref} in the US and how it flows through to Australian stocks and sectors. Use specific index levels.",
         "Paragraph 2 (2-3 sentences): The dominant Australian or macro theme right now (RBA, ABS data, commodity moves, Chinese demand, Australian earnings). Be specific — name the event, number, or company.",
         "Paragraph 3 (1-2 sentences): Two or three specific ASX stocks or sectors to watch at open and the precise reason why.",
         "Separate paragraphs with a blank line. No headings. No bullet points.",
@@ -360,7 +369,7 @@ def build_prompt(entries: dict, market_data: str, movers_text: str) -> str:
         "COMMODITY_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nSUMMARY: <2 sentences — include specific commodity, price direction, and ASX implication>\nCOMMODITY_STORY_END\n",
 
         "GLOBAL_OVERVIEW_START",
-        "1-sentence summary of the most significant overnight development in US or European markets that Australian investors need to know about.",
+        f"1-sentence summary of the most significant {us_session_ref} development in US or European markets that Australian investors need to know about.",
         "GLOBAL_OVERVIEW_END\n",
 
         "2 most important global markets stories (Wall Street earnings, sector moves — only include if directly relevant to ASX or Australian portfolio exposure):",
@@ -767,7 +776,8 @@ def main():
         return
 
     print("Summarising with Claude…")
-    prompt = build_prompt(entries, market_data_text, movers_text)
+    day_of_week = now_aest.strftime("%A")
+    prompt = build_prompt(entries, market_data_text, movers_text, day_of_week=day_of_week)
     print(f"  Prompt length: {len(prompt):,} chars (~{len(prompt)//4:,} tokens)")
     raw = call_claude(prompt)
 
