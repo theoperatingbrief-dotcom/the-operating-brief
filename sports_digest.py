@@ -723,6 +723,30 @@ def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[s
 # ---------------------------------------------------------------------------
 # Ingest — fetch + summarise per sport + store in DB
 # ---------------------------------------------------------------------------
+def _f1_race_in_last_3_days() -> bool:
+    """Returns True if ESPN's F1 scoreboard shows a completed race in the last 3 days."""
+    try:
+        url = "https://site.api.espn.com/apis/site/v2/sports/racing/f1/scoreboard"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read())
+        aest = ZoneInfo("Australia/Sydney")
+        cutoff = datetime.now(aest) - timedelta(days=3)
+        for event in data.get("events", []):
+            status = event.get("status", {}).get("type", {}).get("completed", False)
+            date_str = event.get("date", "")
+            if status and date_str:
+                try:
+                    event_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00")).astimezone(aest)
+                    if event_dt >= cutoff:
+                        return True
+                except Exception:
+                    pass
+    except Exception as ex:
+        print(f"  WARN F1 schedule check: {ex}")
+    return False
+
+
 def run_ingest(mode: str, backfill: bool = False) -> None:
     aest = ZoneInfo("Australia/Sydney")
     today = datetime.now(aest).date()
@@ -742,12 +766,30 @@ def run_ingest(mode: str, backfill: bool = False) -> None:
 
     scores_text, _ = fetch_scores()
 
+    # Check if F1 had a race in the last 3 days via ESPN schedule
+    f1_race_recent = _f1_race_in_last_3_days()
+
     print("Summarising with Claude (per-sport)…")
     for feed_key, label, tag, max_stories, special_notes in SPORT_SECTIONS:
         sport_entries = entries.get(feed_key, [])[:max_stories]
         if not sport_entries and feed_key != "ai_sport":
             print(f"  [{label}] skipped — no stories")
             continue
+
+        # Skip F1 Claude call entirely if no recent race — store NO_CONTENT directly
+        if feed_key == "f1" and not f1_race_recent:
+            try:
+                sb.table("sports_daily_summaries").upsert({
+                    "summary_date": str(today),
+                    "sport": "f1",
+                    "overview": "NO_CONTENT",
+                    "stories": [],
+                }, on_conflict="summary_date,sport").execute()
+                print(f"  [Formula 1] no race in last 3 days — stored NO_CONTENT")
+            except Exception as ex:
+                print(f"  WARN [Formula 1] DB write failed: {ex}")
+            continue
+
         prompt = build_sport_prompt(label, tag, sport_entries, scores_text, mode, special_notes)
         print(f"  [{label}] {len(prompt):,} chars — calling Claude…")
         raw = call_claude(prompt)
