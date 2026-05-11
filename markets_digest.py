@@ -206,14 +206,26 @@ def fetch_market_data() -> tuple[str, list[dict]]:
 
     for cfg in MARKET_TICKERS:
         try:
-            hist = yf.Ticker(cfg["ticker"]).history(period="7d")
-            if hist.empty or len(hist) < 2:
-                print(f"  WARN: no data for {cfg['name']} ({cfg['ticker']})")
-                continue
-            prev, close, last_date = _last_two_closes(hist)
-            if close is None:
-                print(f"  WARN: insufficient completed data for {cfg['name']}")
-                continue
+            ticker = yf.Ticker(cfg["ticker"])
+
+            # Use fast_info for real-time last_price/previous_close where available
+            fi = ticker.fast_info
+            close = getattr(fi, "last_price", None)
+            prev  = getattr(fi, "previous_close", None)
+
+            if not close or not prev:
+                # Fall back to history
+                hist = ticker.history(period="7d")
+                if hist.empty or len(hist) < 2:
+                    print(f"  WARN: no data for {cfg['name']} ({cfg['ticker']})")
+                    continue
+                prev_h, close_h, _ = _last_two_closes(hist)
+                if close_h is None:
+                    print(f"  WARN: insufficient completed data for {cfg['name']}")
+                    continue
+                close, prev = close_h, prev_h
+
+            last_date = today - timedelta(days=1)  # best approximation when using fast_info
             change = close - prev
             pct    = (change / prev) * 100
             value_str  = _fmt_value(cfg, close)
