@@ -166,6 +166,21 @@ def _fmt_change(cfg: dict, change: float, pct: float) -> tuple[str, str]:
     return f"{change:+.1f}", f"{pct:+.2f}%"
 
 
+def _last_two_closes(hist):
+    """Return (prev_close, last_close, last_date) using only completed trading days."""
+    from datetime import date as date_type
+    import pandas as pd
+    today = datetime.now(ZoneInfo("Australia/Sydney")).date()
+    # Drop any row whose date is today — it may be an incomplete intraday candle
+    hist = hist.copy()
+    hist.index = pd.to_datetime(hist.index).tz_localize(None)
+    hist = hist[hist.index.date < today]
+    if len(hist) < 2:
+        return None, None, None
+    last_date = hist.index[-1].date()
+    return float(hist["Close"].iloc[-2]), float(hist["Close"].iloc[-1]), last_date
+
+
 def fetch_market_data() -> tuple[str, list[dict]]:
     """Returns (prompt_text, structured_list)."""
     try:
@@ -175,22 +190,39 @@ def fetch_market_data() -> tuple[str, list[dict]]:
         return "", []
 
     structured = []
+    aest = ZoneInfo("Australia/Sydney")
+    today = datetime.now(aest).date()
+    day_name = datetime.now(aest).strftime("%A")
     prompt_lines = ["=== MARKET DATA ===\n"]
     last_group = None
+    data_date_noted = False
 
     for cfg in MARKET_TICKERS:
         try:
-            hist = yf.Ticker(cfg["ticker"]).history(period="5d")
+            hist = yf.Ticker(cfg["ticker"]).history(period="7d")
             if hist.empty or len(hist) < 2:
                 print(f"  WARN: no data for {cfg['name']} ({cfg['ticker']})")
                 continue
-            close = float(hist["Close"].iloc[-1])
-            prev  = float(hist["Close"].iloc[-2])
+            prev, close, last_date = _last_two_closes(hist)
+            if close is None:
+                print(f"  WARN: insufficient completed data for {cfg['name']}")
+                continue
             change = close - prev
             pct    = (change / prev) * 100
             value_str  = _fmt_value(cfg, close)
             change_str, pct_str = _fmt_change(cfg, change, pct)
             positive = change >= 0
+
+            if not data_date_noted:
+                delta = (today - last_date).days
+                if delta == 1:
+                    date_label = "yesterday"
+                elif delta == 3 and day_name == "Monday":
+                    date_label = "Friday"
+                else:
+                    date_label = last_date.strftime("%A")
+                prompt_lines.append(f"NOTE: Market data is from {date_label}'s close ({last_date}).\n")
+                data_date_noted = True
 
             if cfg["group"] != last_group:
                 prompt_lines.append(f"{cfg['group']}")
@@ -222,8 +254,13 @@ def fetch_asx_movers() -> tuple[str, list[dict], list[dict]]:
         return "", [], []
 
     try:
-        data = yf.download(ASX_WATCHLIST, period="2d", auto_adjust=True, progress=False)
+        import pandas as pd
+        today = datetime.now(ZoneInfo("Australia/Sydney")).date()
+        data = yf.download(ASX_WATCHLIST, period="5d", auto_adjust=True, progress=False)
         closes = data["Close"]
+        # Drop today's incomplete candle if present
+        closes.index = pd.to_datetime(closes.index).tz_localize(None)
+        closes = closes[closes.index.date < today]
 
         moves = []
         for ticker in ASX_WATCHLIST:
@@ -249,7 +286,10 @@ def fetch_asx_movers() -> tuple[str, list[dict], list[dict]]:
         gainers = moves[:8]
         losers  = list(reversed(moves[-8:]))
 
-        lines = ["=== ASX MARKET MOVERS (previous session) ===\n", "Top Gainers:"]
+        session_date = closes.index[-1].date()
+        delta = (today - session_date).days
+        session_label = "Friday" if (delta == 3 and datetime.now(ZoneInfo("Australia/Sydney")).strftime("%A") == "Monday") else session_date.strftime("%A")
+        lines = [f"=== ASX MARKET MOVERS ({session_label} session — {session_date}) ===\n", "Top Gainers:"]
         for m in gainers:
             lines.append(f"  {m['ticker']} ({m['name']}): ${m['last']:.2f} {m['pct']:+.2f}%")
         lines.append("\nTop Losers:")
