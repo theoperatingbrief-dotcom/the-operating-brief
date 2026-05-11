@@ -162,16 +162,24 @@ def _dedupe(entries):
 # ---------------------------------------------------------------------------
 # Claude CLI summarisation
 # ---------------------------------------------------------------------------
-def build_prompt(entries: dict, recent_topics: list[str] | None = None) -> str:
+def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = None, recent_stats: list[str] | None = None) -> str:
     recent_block = ""
     if recent_topics:
-        topic_list = "\n".join(f"- {t}" for t in recent_topics[:30])
+        topic_list = "\n".join(f"- [{label}] {title}" for label, title in recent_topics[:30])
+        stats_note = ""
+        if recent_stats:
+            stats_list = ", ".join(f'"{s}"' for s in recent_stats[:5])
+            stats_note = (
+                f"THE NUMBER must not repeat a stat used recently. Recent stats: {stats_list}. "
+                "Pick a different figure from today's stories.\n"
+            )
         recent_block = (
-            f"TOPICS COVERED IN RECENT EDITIONS:\n{topic_list}\n"
-            "Rules for these topics:\n"
-            "1. If today's story is the same angle with no new development, skip it and use a fresher story.\n"
-            "2. If there is a genuine new development, cover it and acknowledge the prior coverage naturally — "
-            "e.g. 'Following yesterday's report on...', 'Building on last week's Nvidia story...' Keep it brief, one phrase only.\n\n"
+            f"TOPICS COVERED IN RECENT EDITIONS (with how long ago):\n{topic_list}\n"
+            "Rules:\n"
+            "1. Same story, same angle, nothing new → skip it, use a fresher story instead.\n"
+            "2. Genuine new development → include it. If it was yesterday, say 'Following yesterday's report on X...'. "
+            "If it was earlier, say 'Previously, X...' or 'X has...'. One brief phrase only, then move on.\n"
+            f"{stats_note}\n"
         )
     lines = [
         "You are producing a daily news digest for Australian business operators.",
@@ -592,32 +600,49 @@ def fetch_previously_sent_urls(days: int = 1) -> set[str]:
         return set()
 
 
-def fetch_recently_covered_topics(days: int = 3) -> list[str]:
-    """Return story titles from the last N editions to prevent topic repetition."""
+def fetch_recently_covered_topics(days: int = 3) -> tuple[list[tuple[str, str]], list[str]]:
+    """Return (dated_topics, recent_stats) from the last N editions.
+
+    dated_topics: list of (date_label, title) e.g. ("yesterday", "Nvidia commits $40B...")
+    recent_stats: list of stat strings from The Number e.g. ["$40 billion", "1 in 3"]
+    """
     try:
         sb = get_supabase()
         aest = ZoneInfo("Australia/Sydney")
+        today = datetime.now(aest).date()
         slugs = [
-            (datetime.now(aest) - timedelta(days=i)).strftime("%Y-%m-%d")
+            (today - timedelta(days=i)).strftime("%Y-%m-%d")
             for i in range(1, days + 1)
         ]
-        result = sb.table("editions").select("html").in_("slug", slugs).execute()
-        titles = []
+        result = sb.table("editions").select("slug,html").in_("slug", slugs).execute()
+        dated_topics: list[tuple[str, str]] = []
+        recent_stats: list[str] = []
+
         for row in result.data or []:
+            slug = row.get("slug", "")
             html = row.get("html") or ""
-            found = re.findall(r'<h3[^>]*>([^<]{10,})</h3>|data-title="([^"]{10,})"', html)
-            for t1, t2 in found:
-                t = (t1 or t2).strip()
-                if t:
-                    titles.append(t)
-            # Also extract from anchor text in story links
-            found2 = re.findall(r'<a [^>]*class="[^"]*story[^"]*"[^>]*>([^<]{15,})</a>', html)
-            titles.extend(t.strip() for t in found2 if t.strip())
-        print(f"  Loaded {len(titles)} recent story titles for topic dedup")
-        return titles
+            try:
+                edition_date = datetime.strptime(slug[:10], "%Y-%m-%d").date()
+                delta = (today - edition_date).days
+                date_label = "yesterday" if delta == 1 else f"{delta} days ago"
+            except Exception:
+                date_label = "recently"
+
+            # Extract story titles from <h3> tags
+            for t in re.findall(r'<h3[^>]*>([^<]{10,})</h3>', html):
+                dated_topics.append((date_label, t.strip()))
+
+            # Extract The Number stat (42px bold)
+            for stat in re.findall(r'font-size:42px[^>]*>([^<]+)<', html):
+                s = stat.strip()
+                if s:
+                    recent_stats.append(s)
+
+        print(f"  Loaded {len(dated_topics)} recent topics and {len(recent_stats)} recent stats for dedup")
+        return dated_topics, recent_stats
     except Exception as ex:
         print(f"  WARN: could not fetch recent topics: {ex}")
-        return []
+        return [], []
 
 
 def filter_seen_entries(entries: dict, seen_urls: set[str]) -> dict:
@@ -885,7 +910,7 @@ def main():
     print("Filtering stories already sent in previous editions…")
     seen_urls = fetch_previously_sent_urls(days=1)
     entries = filter_seen_entries(entries, seen_urls)
-    recent_topics = fetch_recently_covered_topics(days=3)
+    recent_topics, recent_stats = fetch_recently_covered_topics(days=3)
 
     total = sum(len(v) for v in entries.values())
     print(f"  {total} stories total after deduplication")
@@ -895,7 +920,7 @@ def main():
         return
 
     print("Summarising with Claude…")
-    prompt = build_prompt(entries, recent_topics=recent_topics)
+    prompt = build_prompt(entries, recent_topics=recent_topics, recent_stats=recent_stats)
     raw = call_claude(prompt)
 
     print("Parsing response…")
