@@ -162,9 +162,17 @@ def _dedupe(entries):
 # ---------------------------------------------------------------------------
 # Claude CLI summarisation
 # ---------------------------------------------------------------------------
-def build_prompt(entries: dict) -> str:
+def build_prompt(entries: dict, recent_topics: list[str] | None = None) -> str:
+    recent_block = ""
+    if recent_topics:
+        topic_list = "\n".join(f"- {t}" for t in recent_topics[:30])
+        recent_block = (
+            f"ALREADY COVERED IN RECENT EDITIONS — do not repeat these topics or stories:\n{topic_list}\n"
+            "If today's stories overlap with the above, skip them and prioritise fresh stories instead.\n\n"
+        )
     lines = [
         "You are producing a daily news digest for Australian business operators.",
+        recent_block,
         "Based on the stories below, produce output in EXACTLY this format — no extra text:\n",
 
         "BRIEFING_START",
@@ -581,6 +589,34 @@ def fetch_previously_sent_urls(days: int = 1) -> set[str]:
         return set()
 
 
+def fetch_recently_covered_topics(days: int = 3) -> list[str]:
+    """Return story titles from the last N editions to prevent topic repetition."""
+    try:
+        sb = get_supabase()
+        aest = ZoneInfo("Australia/Sydney")
+        slugs = [
+            (datetime.now(aest) - timedelta(days=i)).strftime("%Y-%m-%d")
+            for i in range(1, days + 1)
+        ]
+        result = sb.table("editions").select("html").in_("slug", slugs).execute()
+        titles = []
+        for row in result.data or []:
+            html = row.get("html") or ""
+            found = re.findall(r'<h3[^>]*>([^<]{10,})</h3>|data-title="([^"]{10,})"', html)
+            for t1, t2 in found:
+                t = (t1 or t2).strip()
+                if t:
+                    titles.append(t)
+            # Also extract from anchor text in story links
+            found2 = re.findall(r'<a [^>]*class="[^"]*story[^"]*"[^>]*>([^<]{15,})</a>', html)
+            titles.extend(t.strip() for t in found2 if t.strip())
+        print(f"  Loaded {len(titles)} recent story titles for topic dedup")
+        return titles
+    except Exception as ex:
+        print(f"  WARN: could not fetch recent topics: {ex}")
+        return []
+
+
 def filter_seen_entries(entries: dict, seen_urls: set[str]) -> dict:
     """Remove entries whose URL was in a previously sent edition."""
     if not seen_urls:
@@ -846,6 +882,7 @@ def main():
     print("Filtering stories already sent in previous editions…")
     seen_urls = fetch_previously_sent_urls(days=1)
     entries = filter_seen_entries(entries, seen_urls)
+    recent_topics = fetch_recently_covered_topics(days=3)
 
     total = sum(len(v) for v in entries.values())
     print(f"  {total} stories total after deduplication")
@@ -855,7 +892,7 @@ def main():
         return
 
     print("Summarising with Claude…")
-    prompt = build_prompt(entries)
+    prompt = build_prompt(entries, recent_topics=recent_topics)
     raw = call_claude(prompt)
 
     print("Parsing response…")
