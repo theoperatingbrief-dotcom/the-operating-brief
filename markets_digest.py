@@ -192,10 +192,17 @@ def fetch_market_data() -> tuple[str, list[dict]]:
     structured = []
     aest = ZoneInfo("Australia/Sydney")
     today = datetime.now(aest).date()
-    day_name = datetime.now(aest).strftime("%A")
     prompt_lines = ["=== MARKET DATA ===\n"]
     last_group = None
-    data_date_noted = False
+    group_dates: dict[str, str] = {}  # group → date label for prompt
+
+    def _date_label(last_date) -> str:
+        delta = (today - last_date).days
+        if delta == 0:
+            return f"today ({last_date})"
+        if delta == 1:
+            return f"yesterday ({last_date})"
+        return f"{last_date.strftime('%A')} {last_date}"
 
     for cfg in MARKET_TICKERS:
         try:
@@ -212,21 +219,13 @@ def fetch_market_data() -> tuple[str, list[dict]]:
             value_str  = _fmt_value(cfg, close)
             change_str, pct_str = _fmt_change(cfg, change, pct)
             positive = change >= 0
+            grp = cfg["group"]
 
-            if not data_date_noted:
-                delta = (today - last_date).days
-                if delta == 1:
-                    date_label = "yesterday"
-                elif delta == 3 and day_name == "Monday":
-                    date_label = "Friday"
-                else:
-                    date_label = last_date.strftime("%A")
-                prompt_lines.append(f"NOTE: Market data is from {date_label}'s close ({last_date}).\n")
-                data_date_noted = True
-
-            if cfg["group"] != last_group:
-                prompt_lines.append(f"{cfg['group']}")
-                last_group = cfg["group"]
+            if grp != last_group:
+                dlabel = _date_label(last_date)
+                group_dates[grp] = dlabel
+                prompt_lines.append(f"{grp} [data from {dlabel}]")
+                last_group = grp
             prompt_lines.append(f"  {cfg['name']}: {value_str} ({pct_str})")
 
             structured.append({
@@ -241,6 +240,13 @@ def fetch_market_data() -> tuple[str, list[dict]]:
             print(f"  {cfg['name']}: {value_str} ({pct_str})")
         except Exception as ex:
             print(f"  WARN {cfg['name']} ({cfg['ticker']}): {ex}")
+
+    # Prepend a session date summary so Claude knows exactly which session each group is from
+    if group_dates:
+        summary = "IMPORTANT — data session dates (use these to frame your writing correctly):\n"
+        summary += "\n".join(f"  {grp}: {dlabel}" for grp, dlabel in group_dates.items())
+        summary += "\n"
+        prompt_lines.insert(1, summary)
 
     prompt_lines.append("")
     return "\n".join(prompt_lines), structured
