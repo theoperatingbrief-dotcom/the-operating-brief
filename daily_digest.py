@@ -170,9 +170,8 @@ def build_prompt(entries: dict, recent_topics: list[str] | None = None) -> str:
             f"TOPICS COVERED IN RECENT EDITIONS:\n{topic_list}\n"
             "Rules for these topics:\n"
             "1. If today's story is the same angle with no new development, skip it and use a fresher story.\n"
-            "2. If there is a genuine new development, cover it — but never reference prior coverage. "
-            "Do not say 'as reported yesterday', 'we previously covered', 'following last week's story', or any similar phrase. "
-            "Write it as if it is being introduced for the first time.\n\n"
+            "2. If there is a genuine new development, cover it and acknowledge the prior coverage naturally — "
+            "e.g. 'Following yesterday's report on...', 'Building on last week's Nvidia story...' Keep it brief, one phrase only.\n\n"
         )
     lines = [
         "You are producing a daily news digest for Australian business operators.",
