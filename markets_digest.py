@@ -377,7 +377,8 @@ def build_prompt(entries: dict, market_data: str, movers_text: str, day_of_week:
         "2. If a number is not in the source data, omit it. Do not guess or approximate.",
         "3. Pure information — no editorial framing, no dramatic language, no vague descriptors.",
         "4. Short sentences. Active voice. Every word must earn its place.",
-        f"5. Australian perspective — lead with ASX implications of {us_session_ref}'s US moves.\n",
+        f"5. Australian perspective — lead with ASX implications of {us_session_ref}'s US moves.",
+        "6. If a stock appears in the ASX movers with a move greater than 5% but has no corresponding news story in the feed, flag it explicitly — e.g. 'CSL fell 15.96% — no news catalyst in today's feed, investors should watch for an announcement at open.'\n",
 
         "BRIEFING_START",
         "Write a 300-word pre-market opening note. Australian investors are the audience — frame everything through an ASX lens.",
