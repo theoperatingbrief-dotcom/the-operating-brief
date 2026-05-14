@@ -222,7 +222,7 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
         "SOCIAL_CAPTION_END\n",
 
         "AI_OVERVIEW_START",
-        "2-3 sentences covering the most important AI developments today. Put each sentence on its own line.",
+        "2-3 sentences highlighting a secondary AI story — not the lead story, which is already covered in the opening briefing above. Surface something the reader hasn't seen yet. Put each sentence on its own line.",
         "AI_OVERVIEW_END\n",
 
         "Then for the 5 most important AI stories, each block formatted EXACTLY as:",
@@ -243,7 +243,7 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
         "PODCAST_END\n",
 
         "WORLD_OVERVIEW_START",
-        "2-3 sentences covering the most important global stories today. Put each sentence on its own line.",
+        "2-3 sentences highlighting a secondary global story — not the lead story already covered in the opening briefing. Surface something the reader hasn't seen yet. Put each sentence on its own line.",
         "WORLD_OVERVIEW_END\n",
 
         "Then for the 3 most important world stories:",
@@ -255,7 +255,7 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
         "WORLD_STORY_END\n",
 
         "AUS_OVERVIEW_START",
-        "2-3 sentences covering the most important Australian stories today. Put each sentence on its own line.",
+        "2-3 sentences highlighting a secondary Australian story — not the lead story already covered in the opening briefing. Surface something the reader hasn't seen yet. Put each sentence on its own line.",
         "AUS_OVERVIEW_END\n",
 
         "Then for the 3 most important Australian stories:",
@@ -272,7 +272,7 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
     if "bigtech" in entries:
         lines += [
             "BIGTECH_OVERVIEW_START",
-            "2-3 sentences covering the most important big-tech AI moves this week. Put each sentence on its own line.",
+            "2-3 sentences highlighting a secondary big-tech AI move this week — not the lead story already covered in the opening briefing. Surface something the reader hasn't seen yet. Put each sentence on its own line.",
             "BIGTECH_OVERVIEW_END\n",
             "Then for up to 3 big-tech stories (Microsoft/Apple/Meta/Amazon/Google/Oracle/Workday/Salesforce/SAP), each:",
             "BIGTECH_STORY_START",
@@ -295,7 +295,7 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
     return "\n".join(lines)
 
 
-def call_claude(prompt: str, retries: int = 3, timeout: int = 180) -> str:
+def call_claude(prompt: str, retries: int = 3, timeout: int = 600) -> str:
     """Call the claude CLI, passing prompt via stdin."""
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     home = os.path.expanduser("~")
@@ -551,6 +551,7 @@ def render_html(d: dict, date_str: str) -> str:
 
   <!-- Footer -->
   <tr><td style="padding:24px 48px;border-top:2px solid #111;">
+    <!--REFERRAL_BLOCK-->
     <p style="margin:0 0 16px;font-size:14px;color:#222;font-family:Georgia,serif;line-height:1.7;">
       Enjoying the brief? Forward it to one person who'd find it useful.<br>
       And if someone sent this your way — <a href="https://theoperatingbrief.com" style="color:#111;text-decoration:none;border-bottom:1px solid #111;padding-bottom:1px;">subscribe here and we'll see you tomorrow.</a>
@@ -661,9 +662,9 @@ def filter_seen_entries(entries: dict, seen_urls: set[str]) -> dict:
 
 def load_recipients() -> list[dict]:
     sb = get_supabase()
-    result = sb.table("subscribers").select("email,token").eq("active", True).execute()
+    result = sb.table("subscribers").select("email,token,referral_code").eq("active", True).execute()
     print(f"  {len(result.data)} active subscriber(s) from Supabase")
-    return result.data  # list of {email, token}
+    return result.data  # list of {email, token, referral_code}
 
 
 def log_send(subject: str, recipient_count: int, resend_id: str) -> None:
@@ -809,28 +810,79 @@ def send_email(to: list[str], subject: str, html_body: str) -> str:
     }
     resp = resend.Emails.send(params)
     resend_id = resp.get("id", str(resp))
-    print(f"    Sent → {resend_id}")
+    print(f"    → {to[0]} ({resend_id})")
     return resend_id
+
+
+def _sent_log_path() -> str:
+    slug = datetime.now(ZoneInfo("Australia/Sydney")).strftime("%Y-%m-%d")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), f".sent_daily_{slug}.json")
+
+
+def _load_sent_log() -> dict:
+    path = _sent_log_path()
+    if os.path.exists(path):
+        import json as _json
+        with open(path) as f:
+            return _json.load(f)
+    return {}
+
+
+def _save_sent_log(log: dict) -> None:
+    import json as _json
+    with open(_sent_log_path(), "w") as f:
+        _json.dump(log, f, indent=2)
 
 
 def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[str]:
     """Send individual emails with personalised unsubscribe links."""
     resend_ids = []
-    for sub in subscribers:
+    failed = []
+    sent_log = _load_sent_log()
+    skipped = list(sent_log.keys())
+    if skipped:
+        print(f"  Skipping {len(skipped)} already sent: {', '.join(skipped)}")
+
+    pending = [s for s in subscribers if s["email"] not in sent_log]
+    for i, sub in enumerate(pending):
+        if i > 0:
+            time.sleep(0.6)  # stay under Resend's 2 req/s limit
         token = sub.get("token", "")
         email = sub["email"]
+        referral_code = sub.get("referral_code", "")
         unsub_url = f"https://theoperatingbrief.com/unsubscribe?token={token}"
         sub_url = "https://theoperatingbrief.com"
-        personalised = base_html.replace(
+
+        if referral_code:
+            ref_url = f"https://theoperatingbrief.com/?ref={referral_code}"
+            referral_block = f"""
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background:#f5f4f0;border-left:3px solid #111;">
+  <tr><td style="padding:20px 24px;">
+    <p style="margin:0 0 4px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">Refer &amp; Win</p>
+    <p style="margin:0 0 8px;font-size:15px;color:#222;line-height:1.6;font-family:Georgia,serif;">First to <strong>10 referrals</strong> wins an official <em>Operating Brief</em> mug. Share your link:</p>
+    <a href="{ref_url}" style="font-family:monospace;font-size:13px;color:#111;word-break:break-all;">{ref_url}</a>
+  </td></tr>
+</table>"""
+        else:
+            referral_block = ""
+
+        personalised = base_html.replace("<!--REFERRAL_BLOCK-->", referral_block).replace(
             'href="mailto:hello@theoperatingbrief.com?subject=Subscribe%20to%20The%20Operating%20Brief"',
             f'href="{sub_url}"'
         ).replace(
             'href="mailto:hello@theoperatingbrief.com?subject=Unsubscribe%20from%20The%20Operating%20Brief"',
             f'href="{unsub_url}"'
         )
-        resend_id = send_email([email], subject, personalised)
-        resend_ids.append(resend_id)
-        time.sleep(0.6)  # stay under Resend's 2 req/s limit
+        try:
+            resend_id = send_email([email], subject, personalised)
+            resend_ids.append(resend_id)
+            sent_log[email] = resend_id
+            _save_sent_log(sent_log)
+        except Exception as ex:
+            print(f"    FAILED {email}: {ex}")
+            failed.append(email)
+    if failed:
+        print(f"  ⚠️  {len(failed)} failed: {', '.join(failed)}")
     return resend_ids
 
 
