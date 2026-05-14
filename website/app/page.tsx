@@ -220,7 +220,7 @@ export default function Home() {
                     margin: "0 0 16px 0",
                   }}
                 >
-                  Share this link — every person who subscribes through it counts toward a reward.
+                  First to 10 referrals wins an official <em>Operating Brief</em> mug. Share your link and start the race.
                 </p>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                   <code

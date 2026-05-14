@@ -119,15 +119,8 @@ export async function POST(request: NextRequest) {
               <p style="font-family:Arial,sans-serif;font-size:11px;color:#888;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 12px 0;">Refer &amp; win</p>
               <p style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:#111;line-height:1.5;margin:0 0 12px 0;">Know someone who should be reading this?</p>
               <p style="font-family:Georgia,serif;font-size:15px;color:#444;line-height:1.7;margin:0 0 20px 0;">
-                Share your link below. Every person who subscribes through it counts toward your tally.
+                Share your link. The first person to hit <strong>10 referrals</strong> wins an official <em>Operating Brief</em> mug — use it for all your important morning briefings.
               </p>
-              <table style="width:100%;margin:0 0 20px 0;border-collapse:collapse;">
-                <tr>
-                  <td style="padding:12px 16px;background:#fff;border:1px solid #ddd;font-family:Arial,sans-serif;font-size:13px;color:#111;width:50%;">🏆 &nbsp;<strong>20 referrals</strong> — prize draw entry</td>
-                  <td style="width:8px;"></td>
-                  <td style="padding:12px 16px;background:#111;border:1px solid #111;font-family:Arial,sans-serif;font-size:13px;color:#fff;width:50%;">💰 &nbsp;<strong>100 referrals</strong> — $1,000 cash</td>
-                </tr>
-              </table>
               <p style="font-family:Arial,sans-serif;font-size:11px;color:#888;margin:0 0 8px 0;">Your personal link</p>
               <a href="${referralUrl}" style="display:block;font-family:monospace;font-size:13px;color:#111;background:#fff;border:1px solid #ddd;padding:10px 14px;text-decoration:none;word-break:break-all;">${referralUrl}</a>
             </div>
