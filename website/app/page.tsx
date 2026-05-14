@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Home() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error" | "duplicate">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [referralUrl, setReferralUrl] = useState<string | null>(null);
+  const [refCode, setRefCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) setRefCode(ref);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -17,10 +25,12 @@ export default function Home() {
       const res = await fetch("/api/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name }),
+        body: JSON.stringify({ email, name, ref: refCode }),
       });
 
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setReferralUrl(data.referralUrl ?? null);
         setStatus("success");
       } else if (res.status === 409) {
         setStatus("duplicate");
@@ -182,10 +192,74 @@ export default function Home() {
                 fontSize: "20px",
                 color: "#111111",
                 fontWeight: 700,
+                marginBottom: "24px",
               }}
             >
               You&apos;re in. Check your inbox tomorrow morning.
             </p>
+            {referralUrl && (
+              <div style={{ backgroundColor: "#f5f4f0", padding: "24px", marginTop: "8px" }}>
+                <p
+                  style={{
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "11px",
+                    color: "#888888",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    margin: "0 0 8px 0",
+                  }}
+                >
+                  Your referral link
+                </p>
+                <p
+                  style={{
+                    fontFamily: "Georgia, serif",
+                    fontSize: "15px",
+                    color: "#222222",
+                    lineHeight: 1.6,
+                    margin: "0 0 16px 0",
+                  }}
+                >
+                  Share this link — every person who subscribes through it counts toward a reward.
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                  <code
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "13px",
+                      color: "#111111",
+                      backgroundColor: "#ffffff",
+                      padding: "8px 12px",
+                      border: "1px solid #dddddd",
+                      flex: 1,
+                      minWidth: "0",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {referralUrl}
+                  </code>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(referralUrl)}
+                    style={{
+                      backgroundColor: "#111111",
+                      color: "#ffffff",
+                      border: "none",
+                      padding: "8px 16px",
+                      fontFamily: "Arial, sans-serif",
+                      fontSize: "12px",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : status === "duplicate" ? (
           <div>

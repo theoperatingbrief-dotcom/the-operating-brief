@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   const supabase = getSupabase();
   try {
     const body = await request.json();
-    const { email, name } = body;
+    const { email, name, ref } = body;
 
     if (!email || typeof email !== "string") {
       return NextResponse.json({ error: "Email is required." }, { status: 400 });
@@ -23,14 +23,27 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
+    // Validate referral code if provided
+    let referrerId: string | null = null;
+    if (ref && typeof ref === "string") {
+      const { data: referrer } = await supabase
+        .from("subscribers")
+        .select("id")
+        .eq("referral_code", ref)
+        .eq("active", true)
+        .maybeSingle();
+      if (referrer) referrerId = referrer.id;
+    }
+
     // Check if email already exists
     const { data: existing } = await supabase
       .from("subscribers")
-      .select("id, active")
+      .select("id, active, referral_code")
       .eq("email", normalizedEmail)
       .maybeSingle();
 
     let subNumber: number | null = null;
+    let referralCode: string | null = null;
 
     if (existing) {
       if (existing.active) {
@@ -41,21 +54,25 @@ export async function POST(request: NextRequest) {
         .from("subscribers")
         .update({ active: true, name: name?.trim() || null })
         .eq("id", existing.id)
-        .select("sub_number")
+        .select("sub_number, referral_code")
         .single();
       if (error) {
         console.error("Supabase reactivate error:", error);
         return NextResponse.json({ error: "Failed to subscribe. Please try again." }, { status: 500 });
       }
       subNumber = reactivated?.sub_number ?? null;
+      referralCode = reactivated?.referral_code ?? null;
     } else {
+      const newReferralCode = Math.random().toString(36).slice(2, 10);
       // Insert new subscriber
       const { data: inserted, error } = await supabase.from("subscribers").insert({
         email: normalizedEmail,
         name: name?.trim() || null,
         active: true,
         token: crypto.randomUUID(),
-      }).select("sub_number").single();
+        referral_code: newReferralCode,
+        referred_by: ref && referrerId ? ref : null,
+      }).select("sub_number, referral_code").single();
       if (error) {
         if (error.code === "23505") {
           return NextResponse.json({ error: "Already subscribed." }, { status: 409 });
@@ -64,7 +81,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Failed to subscribe. Please try again." }, { status: 500 });
       }
       subNumber = inserted?.sub_number ?? null;
+      referralCode = inserted?.referral_code ?? null;
+
+      // Credit the referrer
+      if (referrerId) {
+        await supabase.rpc("increment_referral_count", { subscriber_id: referrerId });
+      }
     }
+
+    const referralUrl = referralCode
+      ? `https://theoperatingbrief.com/?ref=${referralCode}`
+      : null;
 
     // Send welcome email
     try {
@@ -83,6 +110,13 @@ export async function POST(request: NextRequest) {
               ${firstName ? `${firstName}, you're` : "You're"} on the list. Every weekday morning, <em>The Operating Brief</em> will land in your inbox before 7 am with a sharp, AI-powered summary of the business and technology stories that matter to Australian operators.
             </p>
             <p style="font-family:Georgia,serif;font-size:16px;color:#222;line-height:1.75;margin:0 0 32px 0;">No noise. No filler. See you tomorrow morning.</p>
+            ${referralUrl ? `
+            <div style="background:#f5f4f0;padding:24px;margin:0 0 32px 0;">
+              <p style="font-family:Arial,sans-serif;font-size:11px;color:#888;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 8px 0;">Your referral link</p>
+              <p style="font-family:Georgia,serif;font-size:15px;color:#222;line-height:1.6;margin:0 0 12px 0;">Know someone who'd find this useful? Share your link — every subscriber you refer counts toward a reward.</p>
+              <a href="${referralUrl}" style="font-family:Arial,sans-serif;font-size:13px;color:#111;word-break:break-all;">${referralUrl}</a>
+            </div>
+            ` : ""}
             <div style="border-top:2px solid #111;padding-top:16px;">
               <p style="font-size:12px;color:#888;margin:0 0 4px 0;">
                 You're receiving this because you subscribed at <a href="https://theoperatingbrief.com" style="color:#888;">theoperatingbrief.com</a>.
@@ -97,7 +131,7 @@ export async function POST(request: NextRequest) {
       console.error("Welcome email error:", emailErr);
     }
 
-    return NextResponse.json({ message: "Subscribed successfully." }, { status: 200 });
+    return NextResponse.json({ message: "Subscribed successfully.", referralUrl }, { status: 200 });
   } catch (err) {
     console.error("Subscribe error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
