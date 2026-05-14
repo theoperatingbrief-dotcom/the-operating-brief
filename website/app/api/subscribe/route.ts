@@ -111,14 +111,25 @@ export async function POST(request: NextRequest) {
             <p style="font-size:11px;color:#888;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 8px 0;">The Operating Brief</p>
             <h1 style="font-family:Georgia,serif;font-size:28px;font-weight:700;color:#111;border-bottom:3px solid #111;padding-bottom:16px;margin:0 0 24px 0;">You're subscribed.</h1>
             <p style="font-family:Georgia,serif;font-size:16px;color:#222;line-height:1.75;margin:0 0 16px 0;">
-              ${firstName ? `${firstName}, you're` : "You're"} on the list. Every weekday morning, <em>The Operating Brief</em> will land in your inbox before 7 am with a sharp, AI-powered summary of the business and technology stories that matter to Australian operators.
+              ${firstName ? `${firstName}, you're` : "You're"} on the list. Every weekday morning, <em>The Operating Brief</em> lands in your inbox before 7 am — a sharp, AI-powered summary of the business and technology stories that matter to Australian operators.
             </p>
             <p style="font-family:Georgia,serif;font-size:16px;color:#222;line-height:1.75;margin:0 0 32px 0;">No noise. No filler. See you tomorrow morning.</p>
             ${referralUrl ? `
-            <div style="background:#f5f4f0;padding:24px;margin:0 0 32px 0;">
-              <p style="font-family:Arial,sans-serif;font-size:11px;color:#888;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 8px 0;">Your referral link</p>
-              <p style="font-family:Georgia,serif;font-size:15px;color:#222;line-height:1.6;margin:0 0 12px 0;">Know someone who'd find this useful? Share your link — every subscriber you refer counts toward a reward.</p>
-              <a href="${referralUrl}" style="font-family:Arial,sans-serif;font-size:13px;color:#111;word-break:break-all;">${referralUrl}</a>
+            <div style="background:#f5f4f0;border-left:3px solid #111;padding:28px 32px;margin:0 0 32px 0;">
+              <p style="font-family:Arial,sans-serif;font-size:11px;color:#888;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 12px 0;">Refer &amp; win</p>
+              <p style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:#111;line-height:1.5;margin:0 0 12px 0;">Know someone who should be reading this?</p>
+              <p style="font-family:Georgia,serif;font-size:15px;color:#444;line-height:1.7;margin:0 0 20px 0;">
+                Share your link below. Every person who subscribes through it counts toward your tally.
+              </p>
+              <table style="width:100%;margin:0 0 20px 0;border-collapse:collapse;">
+                <tr>
+                  <td style="padding:12px 16px;background:#fff;border:1px solid #ddd;font-family:Arial,sans-serif;font-size:13px;color:#111;width:50%;">🏆 &nbsp;<strong>20 referrals</strong> — prize draw entry</td>
+                  <td style="width:8px;"></td>
+                  <td style="padding:12px 16px;background:#111;border:1px solid #111;font-family:Arial,sans-serif;font-size:13px;color:#fff;width:50%;">💰 &nbsp;<strong>100 referrals</strong> — $1,000 cash</td>
+                </tr>
+              </table>
+              <p style="font-family:Arial,sans-serif;font-size:11px;color:#888;margin:0 0 8px 0;">Your personal link</p>
+              <a href="${referralUrl}" style="display:block;font-family:monospace;font-size:13px;color:#111;background:#fff;border:1px solid #ddd;padding:10px 14px;text-decoration:none;word-break:break-all;">${referralUrl}</a>
             </div>
             ` : ""}
             <div style="border-top:2px solid #111;padding-top:16px;">
