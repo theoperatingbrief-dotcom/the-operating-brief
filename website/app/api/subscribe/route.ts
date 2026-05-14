@@ -50,9 +50,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Already subscribed." }, { status: 409 });
       }
       // Reactivate previously unsubscribed user
+      const reactivatePayload: Record<string, unknown> = { active: true, name: name?.trim() || null };
+      if (!existing.referral_code) {
+        reactivatePayload.referral_code = Math.random().toString(36).slice(2, 10);
+      }
       const { data: reactivated, error } = await supabase
         .from("subscribers")
-        .update({ active: true, name: name?.trim() || null })
+        .update(reactivatePayload)
         .eq("id", existing.id)
         .select("sub_number, referral_code")
         .single();
