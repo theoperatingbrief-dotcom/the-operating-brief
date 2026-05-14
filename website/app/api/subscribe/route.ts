@@ -133,6 +133,7 @@ export async function POST(request: NextRequest) {
       });
     } catch (emailErr) {
       console.error("Welcome email error:", emailErr);
+      return NextResponse.json({ message: "Subscribed successfully.", referralUrl, emailError: String(emailErr) }, { status: 200 });
     }
 
     return NextResponse.json({ message: "Subscribed successfully.", referralUrl }, { status: 200 });
