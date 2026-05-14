@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const firstName = name?.trim().split(" ")[0] || null;
-      await resend.emails.send({
+      const { error: sendError } = await resend.emails.send({
         from: "The Operating Brief <brief@theoperatingbrief.com>",
         to: normalizedEmail,
         replyTo: "hello@theoperatingbrief.com",
@@ -131,6 +131,10 @@ export async function POST(request: NextRequest) {
           </div>
         `,
       });
+      if (sendError) {
+        console.error("Welcome email error:", sendError);
+        return NextResponse.json({ message: "Subscribed successfully.", referralUrl, emailError: sendError.message }, { status: 200 });
+      }
     } catch (emailErr) {
       console.error("Welcome email error:", emailErr);
       return NextResponse.json({ message: "Subscribed successfully.", referralUrl, emailError: String(emailErr) }, { status: 200 });
