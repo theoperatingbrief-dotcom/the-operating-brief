@@ -10,7 +10,7 @@ import sys
 import html
 import time
 import difflib
-import subprocess
+import anthropic
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
@@ -296,32 +296,25 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
 
 
 def call_claude(prompt: str, retries: int = 3, timeout: int = 600) -> str:
-    """Call the claude CLI, passing prompt via stdin."""
-    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-    home = os.path.expanduser("~")
+    """Call the Anthropic API."""
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
 
     for attempt in range(1, retries + 1):
-        print(f"  Calling claude CLI (attempt {attempt}/{retries})...")
+        print(f"  Calling Anthropic API (attempt {attempt}/{retries}, model={model})...")
         try:
-            result = subprocess.run(
-                ["claude", "-p", "-", "--allowedTools", ""],
-                input=prompt,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                timeout=timeout,
-                env=env,
-                cwd=home,
+            message = client.messages.create(
+                model=model,
+                max_tokens=8192,
+                messages=[{"role": "user", "content": prompt}],
             )
-            if result.returncode != 0:
-                raise RuntimeError(f"claude CLI error (rc={result.returncode})")
-            return result.stdout
-        except subprocess.TimeoutExpired:
-            print(f"  WARN: claude timed out after {timeout}s on attempt {attempt}")
+            return message.content[0].text
+        except Exception as e:
+            print(f"  WARN: API call failed on attempt {attempt}: {e}")
             if attempt == retries:
-                raise RuntimeError(f"claude CLI timed out after {retries} attempts")
+                raise RuntimeError(f"Anthropic API failed after {retries} attempts: {e}")
 
-    raise RuntimeError("claude CLI failed")
+    raise RuntimeError("Anthropic API failed")
 
 
 # ---------------------------------------------------------------------------
@@ -453,6 +446,13 @@ def render_html(d: dict, date_str: str) -> str:
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4f0;padding:40px 16px;">
 <tr><td align="center">
 <table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;background:#fff;">
+
+  <!-- Mug competition banner -->
+  <tr><td style="background:#111;padding:14px 48px;">
+    <p style="margin:0;font-size:13px;color:#fff;font-family:Arial,sans-serif;line-height:1.5;">
+      ☕ <strong>Win a free mug</strong> — refer 10 friends to The Operating Brief and we'll ship you one. Your referral link is at the bottom of this email.
+    </p>
+  </td></tr>
 
   <!-- Header -->
   <tr><td style="padding:40px 48px 24px;border-bottom:3px solid #111;">
@@ -990,15 +990,133 @@ def main():
     with open(preview_path, "w") as f:
         f.write(html_body)
 
+    # Try to load today's markets number for combined caption
+    import json as _json
+    markets_number_path = os.path.join(os.path.dirname(__file__), "markets_number.json")
+    markets_number = {}
+    try:
+        with open(markets_number_path) as f:
+            markets_number = _json.load(f)
+    except (FileNotFoundError, ValueError):
+        pass
+
+    daily_stat = digest.get('the_number_stat', '')
+    daily_context = digest.get('the_number_context', '')
+    markets_stat = markets_number.get('stat', '')
+    markets_context = markets_number.get('context', '')
+
     social_path = os.path.join(os.path.dirname(__file__), "social_caption.txt")
     with open(social_path, "w") as f:
-        f.write(f"THE NUMBER: {digest.get('the_number_stat', '')}\n\n")
+        if markets_stat:
+            f.write("THE NUMBERS\n\n")
+            f.write(f"{daily_stat} — {daily_context}\n\n")
+            f.write(f"{markets_stat} — {markets_context}\n\n")
+        else:
+            f.write(f"THE NUMBER: {daily_stat}\n\n")
         f.write(f"{digest.get('social_line1', '')}\n\n")
         f.write(f"{digest.get('social_line2', '')}\n\n")
         f.write(f"{digest.get('social_line3', '')}\n\n")
         f.write(f"{digest.get('social_cta', '')}\n\n")
         f.write(f"{digest.get('social_hashtags', '')}\n")
     print(f"  Social caption saved → {social_path}")
+
+    # LinkedIn-optimised version (copy-paste ready)
+
+    # LinkedIn-optimised version (copy-paste ready)
+    linkedin_path = os.path.join(os.path.dirname(__file__), "social_linkedin.txt")
+    stat = digest.get('the_number_stat', '')
+    hashtags_raw = digest.get('social_hashtags', '')
+    # Trim to 5 hashtags for LinkedIn (algorithm penalises hashtag stuffing)
+    hashtags_trimmed = " ".join(hashtags_raw.split()[:5])
+    with open(linkedin_path, "w") as f:
+        if markets_stat:
+            f.write("THE NUMBERS\n\n")
+            f.write(f"{daily_stat} — {daily_context}\n\n")
+            f.write(f"{markets_stat} — {markets_context}\n\n")
+        else:
+            f.write(f"THE NUMBER: {daily_stat}\n\n")
+        f.write(f"{digest.get('social_line1', '')}\n\n")
+        f.write(f"{digest.get('social_line2', '')}\n\n")
+        f.write(f"{digest.get('social_line3', '')}\n\n")
+        f.write(f"{digest.get('social_cta', '')}\n\n")
+        f.write("—\n\n")
+        f.write("This is The Operating Brief.\n\n")
+        f.write("Every weekday morning, a sharp AI-powered summary of the business and tech stories that matter to Australian operators — straight to your inbox before 7am.\n\n")
+        f.write("No noise. No filler. Free.\n\n")
+        f.write("Subscribe at theoperatingbrief.com\n\n")
+        f.write("—\n\n")
+        f.write("☕ REFER 10 FRIENDS. WIN A MUG.\n\n")
+        f.write("Every edition includes your personal referral link. First to 10 referrals gets an official Operating Brief mug sent to their door.\n\n")
+        f.write("Your link is waiting in your inbox.\n\n")
+        f.write("—\n\n")
+        f.write(f"{hashtags_trimmed} #TheOperatingBrief\n")
+    print(f"  LinkedIn caption saved → {linkedin_path}")
+
+    # LinkedIn article (full digest as long-form article, copy-paste into LinkedIn article editor)
+    article_path = os.path.join(os.path.dirname(__file__), "linkedin_article.txt")
+    ai_stories = digest.get("ai_stories", [])
+    world_stories = digest.get("world_stories", [])
+    au_stories = digest.get("au_stories", [])
+
+    def _section_text(stories, max_items=3):
+        lines = []
+        for s in stories[:max_items]:
+            title = s.get("title", "")
+            summary = s.get("summary", "")
+            url = s.get("url", "")
+            if title and summary:
+                lines.append(f"{title}\n{summary}" + (f"\n{url}" if url else ""))
+        return "\n\n".join(lines)
+
+    with open(article_path, "w") as f:
+        subject_line = digest.get("subject_line", f"The Operating Brief — {date_str}")
+        f.write(f"TITLE: {subject_line}\n\n")
+        f.write("---\n\n")
+
+        # The Numbers
+        if markets_stat:
+            f.write("THE NUMBERS\n\n")
+            f.write(f"{daily_stat} — {daily_context}\n\n")
+            f.write(f"{markets_stat} — {markets_context}\n\n")
+        else:
+            f.write(f"THE NUMBER: {daily_stat}\n\n{daily_context}\n\n")
+        f.write("---\n\n")
+
+        # Main briefing
+        briefing = digest.get("briefing", "").strip()
+        if briefing:
+            f.write(f"{briefing}\n\n")
+            f.write("---\n\n")
+
+        # AI stories
+        if ai_stories:
+            f.write("AI & TECHNOLOGY\n\n")
+            f.write(_section_text(ai_stories))
+            f.write("\n\n---\n\n")
+
+        # World stories
+        if world_stories:
+            f.write("WORLD\n\n")
+            f.write(_section_text(world_stories))
+            f.write("\n\n---\n\n")
+
+        # Australia stories
+        if au_stories:
+            f.write("AUSTRALIA\n\n")
+            f.write(_section_text(au_stories))
+            f.write("\n\n---\n\n")
+
+        # WTMFY
+        wtmfy = digest.get("wtmfy", "").strip()
+        if wtmfy:
+            f.write(f"WHAT THIS MEANS FOR YOU\n\n{wtmfy}\n\n---\n\n")
+
+        # CTA
+        f.write("This is The Operating Brief — a sharp, AI-powered summary of the business and tech stories that matter to Australian operators, every weekday morning before 7am.\n\n")
+        f.write("No noise. No filler. Free.\n\n")
+        f.write("Subscribe at theoperatingbrief.com\n\n")
+        f.write("☕ Refer 10 friends and we'll ship you an official Operating Brief mug. Your referral link is in every edition.\n")
+    print(f"  LinkedIn article saved → {article_path}")
 
     print("Generating Number image…")
     image_path = generate_number_image(digest.get("the_number_stat", ""), digest.get("the_number_context", ""))

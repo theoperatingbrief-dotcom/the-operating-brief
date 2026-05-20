@@ -9,7 +9,7 @@ import os
 import re
 import html
 import difflib
-import subprocess
+import anthropic
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
@@ -205,17 +205,15 @@ def build_prompt(entries: dict) -> str:
 
 
 def call_claude(prompt: str) -> str:
-    print("  Calling claude CLI...")
-    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-    result = subprocess.run(
-        ["claude", "-p", "-"],
-        input=prompt,
-        capture_output=True, text=True, timeout=900,
-        env=env,
+    print("  Calling Anthropic API...")
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
+    message = client.messages.create(
+        model=model,
+        max_tokens=8192,
+        messages=[{"role": "user", "content": prompt}],
     )
-    if result.returncode != 0:
-        raise RuntimeError(f"claude CLI error (rc={result.returncode}): stderr={result.stderr!r} stdout={result.stdout[:500]!r}")
-    return result.stdout
+    return message.content[0].text
 
 
 # ---------------------------------------------------------------------------

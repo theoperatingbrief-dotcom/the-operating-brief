@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_screenshot",
+      "mcp__ccd_session_mgmt__search_session_transcripts",
+      "mcp__ccd_session__mark_chapter"
+    ]
+  }
+}

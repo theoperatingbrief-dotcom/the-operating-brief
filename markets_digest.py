@@ -7,9 +7,12 @@ Run with --preview to check output locally without sending.
 """
 import os
 import re
+import sys
 import html
+import time
 import difflib
-import subprocess
+import subprocess  # still used for macOS `open` command
+import anthropic
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
@@ -396,7 +399,10 @@ def build_prompt(entries: dict, market_data: str, movers_text: str, day_of_week:
         "3. Pure information — no editorial framing, no dramatic language, no vague descriptors.",
         "4. Short sentences. Active voice. Every word must earn its place.",
         f"5. Australian perspective — lead with ASX implications of {us_session_ref}'s US moves.",
-        "6. If a stock appears in the ASX movers with a move greater than 5% but has no corresponding news story in the feed, flag it explicitly — e.g. 'CSL fell 15.96% — no news catalyst in today's feed, investors should watch for an announcement at open.'\n",
+        "6. For ASX movers >5% with no direct company news: first check the macro and global stories for an indirect catalyst",
+        "   (e.g. US inflation data hitting rate-sensitive stocks like banks; CGT/negative gearing policy changes hitting property-linked stocks;",
+        "   commodity price moves hitting miners). Attribute the move to the macro catalyst if one plausibly fits.",
+        "   Only say 'no news catalyst' if you have genuinely checked macro, global, and commodity stories and found nothing relevant.\n",
 
         "BRIEFING_START",
         "Write a 300-word pre-market opening note. Australian investors are the audience — frame everything through an ASX lens.",
@@ -407,7 +413,8 @@ def build_prompt(entries: dict, market_data: str, movers_text: str, day_of_week:
         "BRIEFING_END\n",
 
         "ASX_OVERVIEW_START",
-        "1-sentence snapshot of the single most important ASX story or theme today. Name specific companies, sectors, or data if possible.",
+        "1-sentence snapshot of the single most important ASX story or theme today. Name specific companies or sectors.",
+        "When referencing large movers, connect them to their macro or global catalyst (US inflation, RBA, commodity prices, policy changes) — do not describe them in isolation.",
         "ASX_OVERVIEW_END\n",
 
         "3 most important ASX stories (earnings, company announcements, sector moves, M&A, broker calls — Australian companies only):",
@@ -466,17 +473,15 @@ def build_prompt(entries: dict, market_data: str, movers_text: str, day_of_week:
 
 
 def call_claude(prompt: str) -> str:
-    print("  Calling claude CLI...")
-    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-    result = subprocess.run(
-        ["claude", "-p", "-"],
-        input=prompt,
-        capture_output=True, text=True, timeout=900,
-        env=env,
+    print("  Calling Anthropic API...")
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
+    message = client.messages.create(
+        model=model,
+        max_tokens=8192,
+        messages=[{"role": "user", "content": prompt}],
     )
-    if result.returncode != 0:
-        raise RuntimeError(f"claude CLI error (rc={result.returncode}): stderr={result.stderr!r} stdout={result.stdout[:500]!r}")
-    return result.stdout
+    return message.content[0].text
 
 
 # ---------------------------------------------------------------------------
@@ -650,7 +655,7 @@ def _section(label: str, overview: str, stories: list) -> str:
 def render_html(d: dict, date_str: str, market_data: list[dict], gainers: list[dict], losers: list[dict]) -> str:
     briefing_html_parts = []
     para_style = 'margin:0 0 16px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;'
-    for para in re.split(r'\n{2,}|\n', d["briefing"].strip()):
+    for para in re.split(r'\n{2,}', d["briefing"].strip()):
         para = para.strip()
         if para:
             briefing_html_parts.append(f'<p style="{para_style}">{_e(para)}</p>')
@@ -728,6 +733,90 @@ def render_html(d: dict, date_str: str, market_data: list[dict], gainers: list[d
 
 
 # ---------------------------------------------------------------------------
+# Social card — markets stat image (1080x1080, Instagram/LinkedIn ready)
+# ---------------------------------------------------------------------------
+def generate_markets_card(stat: str, context: str) -> str | None:
+    if not stat:
+        return None
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        print("  WARN: Pillow not installed — skipping social card. Run: pip install Pillow")
+        return None
+
+    W, H = 1080, 1080
+    img = Image.new("RGB", (W, H), color="#111111")
+    draw = ImageDraw.Draw(img)
+
+    font_dir = "/System/Library/Fonts/Supplemental"
+    def font(name, size):
+        try:
+            return ImageFont.truetype(os.path.join(font_dir, name), size)
+        except Exception:
+            return ImageFont.load_default()
+
+    label_font   = font("Arial.ttf", 22)
+    context_font = font("Georgia.ttf", 34)
+    brand_font   = font("Arial.ttf", 20)
+
+    def wrap_text(text, f, max_width):
+        words = text.split()
+        lines, current = [], []
+        for word in words:
+            test = " ".join(current + [word])
+            if draw.textbbox((0, 0), test, font=f)[2] > max_width:
+                if current:
+                    lines.append(" ".join(current))
+                current = [word]
+            else:
+                current.append(word)
+        if current:
+            lines.append(" ".join(current))
+        return lines
+
+    # Auto-size the stat
+    stat_size = 160
+    stat_font = font("Georgia Bold.ttf", stat_size)
+    stat_lines = []
+    while stat_size >= 48:
+        stat_lines = wrap_text(stat, stat_font, W - 140)
+        if len(stat_lines) <= 3:
+            break
+        stat_size -= 8
+        stat_font = font("Georgia Bold.ttf", stat_size)
+
+    # Label
+    draw.text((W // 2, 190), "THE NUMBER", font=label_font, fill="#888888", anchor="mm")
+    draw.line([(W // 2 - 60, 226), (W // 2 + 60, 226)], fill="#333333", width=1)
+
+    # Stat
+    stat_line_h = stat_size + 12
+    stat_block_h = len(stat_lines) * stat_line_h
+    stat_y = H // 2 - stat_block_h // 2
+    for line in stat_lines:
+        draw.text((W // 2, stat_y), line, font=stat_font, fill="#ffffff", anchor="mm")
+        stat_y += stat_line_h
+
+    # Context
+    context_lines = wrap_text(context, context_font, W - 140)
+    y = H // 2 + stat_block_h // 2 + 36
+    for line in context_lines:
+        draw.text((W // 2, y), line, font=context_font, fill="#cccccc", anchor="mm")
+        y += 52
+
+    # Branding
+    draw.text((W // 2, H - 100), "The Markets Brief", font=brand_font, fill="#555555", anchor="mm")
+
+    images_dir = os.path.join(os.path.dirname(__file__), "social_images")
+    os.makedirs(images_dir, exist_ok=True)
+    slug = datetime.now(ZoneInfo("Australia/Sydney")).strftime("%Y-%m-%d")
+    path = os.path.join(images_dir, f"{slug}_markets_card.png")
+    img.save(path, "PNG")
+    print(f"  Social card saved → {path}")
+    return path
+
+
+# ---------------------------------------------------------------------------
 # Supabase
 # ---------------------------------------------------------------------------
 def get_supabase():
@@ -781,13 +870,42 @@ def send_email(to: list[str], subject: str, html_body: str) -> str:
     }
     resp = resend.Emails.send(params)
     resend_id = resp.get("id", str(resp))
-    print(f"    Sent → {resend_id}")
+    print(f"    → {to[0]} ({resend_id})")
     return resend_id
+
+
+def _sent_log_path() -> str:
+    slug = datetime.now(ZoneInfo("Australia/Sydney")).strftime("%Y-%m-%d")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), f".sent_markets_{slug}.json")
+
+
+def _load_sent_log() -> dict:
+    path = _sent_log_path()
+    if os.path.exists(path):
+        with open(path) as f:
+            import json as _json
+            return _json.load(f)
+    return {}
+
+
+def _save_sent_log(log: dict) -> None:
+    import json as _json
+    with open(_sent_log_path(), "w") as f:
+        _json.dump(log, f, indent=2)
 
 
 def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[str]:
     resend_ids = []
-    for sub in subscribers:
+    failed = []
+    sent_log = _load_sent_log()
+    skipped = list(sent_log.keys())
+    if skipped:
+        print(f"  Skipping {len(skipped)} already sent: {', '.join(skipped)}")
+
+    pending = [s for s in subscribers if s["email"] not in sent_log]
+    for i, sub in enumerate(pending):
+        if i > 0:
+            time.sleep(0.6)
         token = sub.get("token", "")
         email = sub["email"]
         unsub_url = f"https://theoperatingbrief.com/markets/unsubscribe?token={token}"
@@ -799,8 +917,16 @@ def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[s
             'href="mailto:hello@themarketsbrief.com?subject=Unsubscribe%20from%20The%20Markets%20Brief"',
             f'href="{unsub_url}"'
         )
-        resend_id = send_email([email], subject, personalised)
-        resend_ids.append(resend_id)
+        try:
+            resend_id = send_email([email], subject, personalised)
+            resend_ids.append(resend_id)
+            sent_log[email] = resend_id
+            _save_sent_log(sent_log)
+        except Exception as ex:
+            print(f"    FAILED {email}: {ex}")
+            failed.append(email)
+    if failed:
+        print(f"  ⚠️  {len(failed)} failed: {', '.join(failed)}")
     return resend_ids
 
 
@@ -881,6 +1007,16 @@ def main():
     print("Rendering HTML…")
     html_body = render_html(digest, date_str, market_data_structured, gainers, losers)
 
+    # Save the number so daily_digest can combine both in the social caption
+    import json as _json
+    markets_number_path = os.path.join(os.path.dirname(__file__), "markets_number.json")
+    with open(markets_number_path, "w") as f:
+        _json.dump({
+            "stat": digest.get("the_number_stat", ""),
+            "context": digest.get("the_number_context", ""),
+        }, f)
+    print(f"  Markets number saved → {markets_number_path}")
+
     # Always save preview file so --send uses exactly what was reviewed
     with open(preview_path, "w") as f:
         f.write(html_body)
@@ -889,6 +1025,19 @@ def main():
 
     if args.preview:
         print(f"Preview saved → {preview_path}")
+        webbrowser.open(f"file://{preview_path}")
+        # Generate social card and pop it open
+        card_path = generate_markets_card(
+            digest.get("the_number_stat", ""),
+            digest.get("the_number_context", ""),
+        )
+        if card_path:
+            import subprocess as _sp
+            _sp.run(["open", card_path])
+        print(f"  Web preview: https://theoperatingbrief.com/preview/{os.environ.get('PREVIEW_TOKEN', '<PREVIEW_TOKEN>')}")
+        if not sys.stdin.isatty():
+            print("Running unattended — draft saved. Approve and send from the web preview.")
+            return
         webbrowser.open(f"file://{preview_path}")
         print("\nReview the email, then type y to send.\n")
         answer = input("Send to subscribers now? (y/n): ").strip().lower()
