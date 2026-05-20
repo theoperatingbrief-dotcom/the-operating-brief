@@ -6,10 +6,13 @@ Same architecture as daily_digest.py. Run with --preview to check output locally
 """
 import os
 import re
+import sys
 import html
+import time
 import socket
 import difflib
-import subprocess
+import subprocess  # still used for macOS `open` command
+import anthropic
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
@@ -114,6 +117,28 @@ FEEDS = {
     ],
 }
 
+# Additional feeds used for AFL/NRL on Thursdays — preview/fixture focused rather than results
+FEEDS_THURSDAY_PREVIEW = {
+    "afl": [
+        "https://www.afl.com.au/rss/news",
+        "https://www.theage.com.au/rss/sport/afl.xml",
+        "https://www.abc.net.au/news/feed/52278/rss.xml",
+        "https://wwos.nine.com.au/rss",
+        "https://news.google.com/rss/search?q=AFL+Round+preview+fixtures+weekend&hl=en-AU&gl=AU&ceid=AU:en",
+        "https://news.google.com/rss/search?q=AFL+Round+tips+team+selections+2025&hl=en-AU&gl=AU&ceid=AU:en",
+        "https://news.google.com/rss/search?q=AFL+injury+news+team+list+this+week&hl=en-AU&gl=AU&ceid=AU:en",
+    ],
+    "nrl": [
+        "https://www.nrl.com/rss/latest-news/",
+        "https://www.foxsports.com.au/rss",
+        "https://www.abc.net.au/news/feed/52278/rss.xml",
+        "https://wwos.nine.com.au/rss",
+        "https://news.google.com/rss/search?q=NRL+Round+preview+fixtures+weekend&hl=en-AU&gl=AU&ceid=AU:en",
+        "https://news.google.com/rss/search?q=NRL+Round+tips+team+selections+2025&hl=en-AU&gl=AU&ceid=AU:en",
+        "https://news.google.com/rss/search?q=NRL+injury+news+team+list+this+week&hl=en-AU&gl=AU&ceid=AU:en",
+    ],
+}
+
 SIMILARITY_THRESHOLD = 0.75
 
 
@@ -133,6 +158,9 @@ def fetch_entries(feeds: dict, hours_override: int = 0) -> dict:
     results = {k: [] for k in feeds}
 
     for cat, urls in feeds.items():
+        # On Thursdays, swap AFL/NRL to preview-focused feeds
+        if is_thursday and cat in FEEDS_THURSDAY_PREVIEW:
+            urls = FEEDS_THURSDAY_PREVIEW[cat]
         cutoff = cutoff_ai if cat == "ai_sport" else cutoff_default
         for url in urls:
             try:
@@ -345,24 +373,36 @@ SPORT_SECTIONS = [
 
 
 def build_sport_prompt(label: str, tag: str, entries: list, scores_text: str, mode: str, special_notes: str = "") -> str:
-    is_preview = mode == "preview"
+    is_thursday_preview = mode == "thursday_preview"
+    is_preview = mode in ("preview", "thursday_preview")
     if tag == "AI_SPORT":
-        overview_instr = f"2-3 sentences covering the most interesting AI, business, or technology stories in sport. Put each sentence on its own line. {special_notes}"
+        overview_instr = f"2-3 sentences on a secondary AI, business, or technology story in sport — not the lead story already covered in the opening briefing. Sharp, punchy, active voice. Each sentence on its own line. {special_notes}"
+    elif is_thursday_preview:
+        overview_instr = (
+            f"2-3 sentences previewing the upcoming {label} weekend — the key fixture, what's at stake, and recent form. "
+            "Specific teams and players only. Do not report upcoming events as completed results. Each sentence on its own line."
+        )
     elif is_preview:
         overview_instr = (
-            f"2-3 sentences previewing the most important {label} fixtures this week. "
-            "Lead with the biggest game. Put each sentence on its own line. Facts only — specific teams, days, and context."
+            f"2-3 sentences on a secondary {label} story this week — not the headline fixture already covered in the opening briefing. "
+            "Sharp, punchy, active voice. Specific teams, names, scores. Each sentence on its own line."
         )
     else:
         overview_instr = (
-            f"2-3 sentences covering the biggest {label} results from the weekend. "
-            "Lead with the headline result. Put each sentence on its own line. Facts only — scores, names, key details."
+            f"2-3 sentences on a secondary {label} story from the weekend — not the headline result already covered in the opening briefing. "
+            "Sharp, punchy, active voice. Scores and names required. Each sentence on its own line."
         )
 
-    result_hint = special_notes if tag in ("F1", "GOLF") else "score e.g. 'Sharks def. Tigers 52-10', or omit if unknown"
+    if is_thursday_preview:
+        result_hint = "upcoming fixture e.g. 'Broncos v Storm, Sat 7:30pm AEST', or omit"
+    elif tag in ("F1", "GOLF"):
+        result_hint = special_notes
+    else:
+        result_hint = "score e.g. 'Sharks def. Tigers 52-10', or omit if unknown"
 
+    digest_label = "Thursday weekend preview" if is_thursday_preview else "weekend sports digest"
     lines = [
-        f"You are writing the {label} section of a weekend sports digest for Australian fans.",
+        f"You are writing the {label} section of a {digest_label} for Australian fans.",
         "Produce output in EXACTLY this format — no extra text, no preamble:\n",
         f"{tag}_OVERVIEW_START",
         overview_instr,
@@ -376,13 +416,23 @@ def build_sport_prompt(label: str, tag: str, entries: list, scores_text: str, mo
         "SUMMARY: <1 sentence — score first, key detail second>",
         f"{tag}_STORY_END\n",
         "RULES:",
-        "1. Specific names only — players, coaches, teams. Never 'a player' or 'the star'.",
-        "2. Always include the score when reporting a result.",
-        "3. If a fact is not in the source data, omit it — do not write 'unavailable'.",
-        "4. No colour writing, no drama. Pure information.",
+        "1. Specific names only — players, coaches, teams. Never 'a player', 'the star', 'a key figure'.",
+        "2. Always include the score when reporting a result." if not is_thursday_preview else
+            "2. Include scheduled date/time when known. Do not invent scores for upcoming matches.",
+        "3. Report upcoming weekend fixtures only — do not report past results or imply milestones have been reached."
+            if is_thursday_preview else
+            "3. Only report events that have already occurred. Do not report upcoming fixtures as results.\n"
+            "   Do not complete or anticipate milestones — if a record or milestone is upcoming, omit it entirely.",
+        "4. Only use facts, quotes, scores, venues, and statistics that appear verbatim in the source data.",
+        "   If it is not in the source data, omit it. Do not infer, estimate, or fill gaps from general knowledge.",
+        "5. Sharp, punchy prose. Active voice. Short sentences. Every sentence earns its place.",
+        "6. BANNED PHRASES — never use: 'notable', 'significant', 'dominant', 'standout', 'decisive',",
+        "   'reshaping', 'heading into', 'ladder implications', 'top-four contenders', 'on the verge',",
+        "   'further solidifying', 'remains to be seen', 'question marks', 'building momentum',",
+        "   'captured attention', 'drew scrutiny', 'attracted interest', 'collectively', 'amid'.",
     ]
     if special_notes and tag not in ("F1", "GOLF", "AI_SPORT"):
-        lines.append(f"5. {special_notes}")
+        lines.append(f"6. {special_notes}")
 
     lines.append(f"\n=== {label.upper()} STORIES ===")
     for item in entries:
@@ -396,23 +446,38 @@ def build_sport_prompt(label: str, tag: str, entries: list, scores_text: str, mo
     return "\n".join(lines)
 
 
-def build_briefing_prompt(sport_summaries: dict, mode: str) -> str:
+def build_briefing_prompt(sport_summaries: dict, mode: str, is_thursday: bool = False) -> str:
     is_preview = mode == "preview"
-    if is_preview:
+    banned = (
+        "BANNED PHRASES — do not use any of these: 'notable', 'significant', 'dominant', 'standout', "
+        "'decisive', 'reshaping', 'heading into', 'ladder implications', 'top-four contenders', 'on the verge', "
+        "'further solidifying', 'remains to be seen', 'question marks', 'building momentum', "
+        "'captured attention', 'drew scrutiny', 'attracted interest', 'collectively', 'amid', "
+        "'off the field', 'on the field', 'in the mix', 'keeps their run alive', 'carry significant'."
+    )
+    if is_thursday:
         instr = (
-            "Write a WEEK PREVIEW in 3-4 paragraphs. News reporter tone — factual and direct, not conversational or dramatic.\n"
-            "Cover the 4-6 most significant upcoming fixtures. Group related fixtures into the same paragraph.\n"
-            "Separate each paragraph with a blank line. Do not put every sentence on its own line.\n"
-            "No colour commentary, no metaphors, no editorial opinion. State the facts: who is playing, what is at stake, what the form says.\n"
-            "End with a sentence on what to watch for this weekend."
+            "Write a WEEKEND PREVIEW in 3-4 paragraphs. Sharp, punchy, active voice. Short sentences. Every sentence earns its place — no padding.\n"
+            "Open with AFL (first) and NRL: preview the key upcoming weekend fixtures. State who is playing, recent form, and what is at stake.\n"
+            "Then cover other sports briefly: summarise what has happened since the last edition — results, scores, key storylines.\n"
+            "End with the single AFL or NRL fixture most worth watching this weekend — name the teams and why.\n"
+            f"{banned}"
+        )
+    elif is_preview:
+        instr = (
+            "Write a WEEK PREVIEW in 3-4 paragraphs. Sharp, punchy, active voice. Short sentences. Every sentence earns its place — no padding.\n"
+            "Cover the 4-6 most important upcoming fixtures. Group related sport into the same paragraph.\n"
+            "State who is playing, recent form with scores, and what is at stake. No vague build-up.\n"
+            "End with the single fixture most worth watching this weekend — name the teams and why.\n"
+            f"{banned}"
         )
     else:
         instr = (
-            "Write a WEEKEND WRAP in 3-4 paragraphs. News reporter tone — factual and direct, not conversational or dramatic.\n"
-            "Cover the 4-6 most significant stories. Specific names and scores required — e.g. 'Antonelli won Miami' not 'a driver extended their lead'.\n"
-            "Group related stories into the same paragraph. Separate each paragraph with a blank line. Do not put every sentence on its own line.\n"
-            "No colour commentary, no metaphors, no editorial opinion. Report what happened: who won, by how much, what it means in the standings.\n"
-            "Do not add a closing sentence about what is coming up — end on the last result."
+            "Write a WEEKEND WRAP in 3-4 paragraphs. Sharp, punchy, active voice. Short sentences. Every sentence earns its place — no padding.\n"
+            "Cover the 4-6 most important results and stories. Names and scores throughout.\n"
+            "State who won, by how much, what it changes. Make every fact count.\n"
+            "Do not add a closing forward-looking sentence — end on the last result.\n"
+            f"{banned}"
         )
 
     lines = [
@@ -420,9 +485,19 @@ def build_briefing_prompt(sport_summaries: dict, mode: str) -> str:
         instr,
         "Australian audience — lead with AFL and NRL, then other sports. Do not open with F1 or international sports.\n",
         "No bullet points, no bold headings, no sport labels. Flowing prose only.\n",
+        "STRICT ACCURACY RULES — these override everything else:",
+        "1. Only use facts, scores, names, venues, and quotes that appear in the sport summaries below.",
+        "   Do not draw on general knowledge, training data, or fill gaps by inference.",
+        "2. Only report events that have already happened. Do not report upcoming fixtures, milestones, or records as completed.",
+        "3. Do not mix sports. NRL teams (Warriors, Broncos, Storm, etc.) must never appear in AFL paragraphs, and vice versa.",
+        "4. Do not invent or paraphrase quotes. Only include a quote if it appears verbatim in the source summaries.\n",
         "BRIEFING_START",
         "[3-4 paragraphs separated by blank lines]",
         "BRIEFING_END\n",
+        "THE_NUMBER_START",
+        "STAT: <one standout sports stat from this edition — score, streak, record, margin. Max 6 words. E.g. '44-16', '8 straight wins', '54-point margin'>",
+        "CONTEXT: <one sentence explaining what this stat is and why it matters>",
+        "THE_NUMBER_END\n",
         "=== SPORT SUMMARIES ===",
     ]
     for sport_label, overview in sport_summaries.items():
@@ -431,33 +506,26 @@ def build_briefing_prompt(sport_summaries: dict, mode: str) -> str:
     return "\n".join(lines)
 
 
-def call_claude(prompt: str, retries: int = 2, timeout: int = 120) -> str:
-    """Call the claude CLI, passing prompt via stdin."""
-    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-    home = os.path.expanduser("~")
+def call_claude(prompt: str, retries: int = 2, timeout: int = 240) -> str:
+    """Call the Anthropic API."""
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
 
     for attempt in range(1, retries + 1):
-        print(f"  Calling claude CLI (attempt {attempt}/{retries})...")
+        print(f"  Calling Anthropic API (attempt {attempt}/{retries}, model={model})...")
         try:
-            result = subprocess.run(
-                ["claude", "-p", "-", "--allowedTools", ""],
-                input=prompt,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                timeout=timeout,
-                env=env,
-                cwd=home,
+            message = client.messages.create(
+                model=model,
+                max_tokens=8192,
+                messages=[{"role": "user", "content": prompt}],
             )
-            if result.returncode != 0:
-                raise RuntimeError(f"claude CLI error (rc={result.returncode})")
-            return result.stdout
-        except subprocess.TimeoutExpired:
-            print(f"  WARN: claude timed out after {timeout}s on attempt {attempt}")
+            return message.content[0].text
+        except Exception as e:
+            print(f"  WARN: API call failed on attempt {attempt}: {e}")
             if attempt == retries:
-                raise RuntimeError(f"claude CLI timed out after {retries} attempts")
+                raise RuntimeError(f"Anthropic API failed after {retries} attempts: {e}")
 
-    raise RuntimeError("claude CLI failed")
+    raise RuntimeError("Anthropic API failed")
 
 
 # ---------------------------------------------------------------------------
@@ -483,7 +551,7 @@ def _extract_blocks(text: str, tag: str) -> list[dict]:
 
 
 def parse_response(raw: str) -> dict:
-    return {
+    result = {
         "briefing":            _extract(raw, "BRIEFING"),
         "nrl_overview":        _extract(raw, "NRL_OVERVIEW"),
         "nrl_stories":         _extract_blocks(raw, "NRL_STORY"),
@@ -503,7 +571,19 @@ def parse_response(raw: str) -> dict:
         "golf_stories":        _extract_blocks(raw, "GOLF_STORY"),
         "ai_sport_overview":   _extract(raw, "AI_SPORT_OVERVIEW"),
         "ai_sport_stories":    _extract_blocks(raw, "AI_SPORT_STORY"),
+        "the_number_stat":     "",
+        "the_number_context":  "",
     }
+
+    # Parse THE_NUMBER from briefing response
+    the_number_block = re.findall(r"THE_NUMBER_START\n(.*?)\nTHE_NUMBER_END", raw, re.DOTALL)
+    if the_number_block:
+        for line in the_number_block[0].splitlines():
+            if line.startswith("STAT:"):
+                result["the_number_stat"] = line[5:].strip()
+            elif line.startswith("CONTEXT:"):
+                result["the_number_context"] = line[8:].strip()
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -644,6 +724,94 @@ def render_html(d: dict, date_str: str, edition_label: str = "Weekend Wrap", sco
 
 
 # ---------------------------------------------------------------------------
+# Social card — sports stat image (1080x1080, Instagram/LinkedIn ready)
+# ---------------------------------------------------------------------------
+def generate_sports_card(stat: str, context: str, edition_label: str = "Weekend Wrap") -> str | None:
+    if not stat:
+        return None
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        print("  WARN: Pillow not installed — skipping social card. Run: pip install Pillow")
+        return None
+
+    W, H = 1080, 1080
+    img = Image.new("RGB", (W, H), color="#111111")
+    draw = ImageDraw.Draw(img)
+
+    font_dir = "/System/Library/Fonts/Supplemental"
+    def font(name, size):
+        try:
+            return ImageFont.truetype(os.path.join(font_dir, name), size)
+        except Exception:
+            return ImageFont.load_default()
+
+    label_font   = font("Arial.ttf", 22)
+    context_font = font("Georgia.ttf", 34)
+    brand_font   = font("Arial.ttf", 20)
+    edition_font = font("Arial.ttf", 18)
+
+    def wrap_text(text, f, max_width):
+        words = text.split()
+        lines, current = [], []
+        for word in words:
+            test = " ".join(current + [word])
+            if draw.textbbox((0, 0), test, font=f)[2] > max_width:
+                if current:
+                    lines.append(" ".join(current))
+                current = [word]
+            else:
+                current.append(word)
+        if current:
+            lines.append(" ".join(current))
+        return lines
+
+    # Auto-size the stat
+    stat_size = 160
+    stat_font = font("Georgia Bold.ttf", stat_size)
+    stat_lines = []
+    while stat_size >= 48:
+        stat_lines = wrap_text(stat, stat_font, W - 140)
+        if len(stat_lines) <= 3:
+            break
+        stat_size -= 8
+        stat_font = font("Georgia Bold.ttf", stat_size)
+
+    # Edition label (e.g. "WEEK PREVIEW" or "WEEKEND WRAP")
+    draw.text((W // 2, 140), edition_label.upper(), font=edition_font, fill="#666666", anchor="mm")
+
+    # "THE NUMBER" label
+    draw.text((W // 2, 190), "THE NUMBER", font=label_font, fill="#888888", anchor="mm")
+    draw.line([(W // 2 - 60, 226), (W // 2 + 60, 226)], fill="#333333", width=1)
+
+    # Stat — vertically centred
+    stat_line_h = stat_size + 12
+    stat_block_h = len(stat_lines) * stat_line_h
+    stat_y = H // 2 - stat_block_h // 2
+    for line in stat_lines:
+        draw.text((W // 2, stat_y), line, font=stat_font, fill="#ffffff", anchor="mm")
+        stat_y += stat_line_h
+
+    # Context below stat
+    context_lines = wrap_text(context, context_font, W - 140)
+    y = H // 2 + stat_block_h // 2 + 36
+    for line in context_lines:
+        draw.text((W // 2, y), line, font=context_font, fill="#cccccc", anchor="mm")
+        y += 52
+
+    # Branding
+    draw.text((W // 2, H - 100), "The Sporting Brief", font=brand_font, fill="#555555", anchor="mm")
+
+    images_dir = os.path.join(os.path.dirname(__file__), "social_images")
+    os.makedirs(images_dir, exist_ok=True)
+    slug = datetime.now(ZoneInfo("Australia/Sydney")).strftime("%Y-%m-%d")
+    path = os.path.join(images_dir, f"{slug}_sports_card.png")
+    img.save(path, "PNG")
+    print(f"  Social card saved → {path}")
+    return path
+
+
+# ---------------------------------------------------------------------------
 # Supabase
 # ---------------------------------------------------------------------------
 def get_supabase():
@@ -697,13 +865,42 @@ def send_email(to: list[str], subject: str, html_body: str) -> str:
     }
     resp = resend.Emails.send(params)
     resend_id = resp.get("id", str(resp))
-    print(f"    Sent → {resend_id}")
+    print(f"    → {to[0]} ({resend_id})")
     return resend_id
+
+
+def _sent_log_path() -> str:
+    slug = datetime.now(ZoneInfo("Australia/Sydney")).strftime("%Y-%m-%d")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), f".sent_sports_{slug}.json")
+
+
+def _load_sent_log() -> dict:
+    path = _sent_log_path()
+    if os.path.exists(path):
+        import json as _json
+        with open(path) as f:
+            return _json.load(f)
+    return {}
+
+
+def _save_sent_log(log: dict) -> None:
+    import json as _json
+    with open(_sent_log_path(), "w") as f:
+        _json.dump(log, f, indent=2)
 
 
 def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[str]:
     resend_ids = []
-    for sub in subscribers:
+    failed = []
+    sent_log = _load_sent_log()
+    skipped = [e for e in sent_log]
+    if skipped:
+        print(f"  Skipping {len(skipped)} already sent: {', '.join(skipped)}")
+
+    pending = [s for s in subscribers if s["email"] not in sent_log]
+    for i, sub in enumerate(pending):
+        if i > 0:
+            time.sleep(0.6)
         token = sub.get("token", "")
         email = sub["email"]
         unsub_url = f"https://thesportingbrief.com/unsubscribe?token={token}"
@@ -715,8 +912,16 @@ def send_to_all(subscribers: list[dict], subject: str, base_html: str) -> list[s
             'href="mailto:hello@theoperatingbrief.com?subject=Unsubscribe%20from%20The%20Sporting%20Brief"',
             f'href="{unsub_url}"'
         )
-        resend_id = send_email([email], subject, personalised)
-        resend_ids.append(resend_id)
+        try:
+            resend_id = send_email([email], subject, personalised)
+            resend_ids.append(resend_id)
+            sent_log[email] = resend_id
+            _save_sent_log(sent_log)
+        except Exception as ex:
+            print(f"    FAILED {email}: {ex}")
+            failed.append(email)
+    if failed:
+        print(f"  ⚠️  {len(failed)} failed: {', '.join(failed)}")
     return resend_ids
 
 
@@ -749,7 +954,9 @@ def _f1_race_in_last_3_days() -> bool:
 
 def run_ingest(mode: str, backfill: bool = False) -> None:
     aest = ZoneInfo("Australia/Sydney")
-    today = datetime.now(aest).date()
+    now_aest = datetime.now(aest)
+    today = now_aest.date()
+    is_thursday = now_aest.weekday() == 3
     sb = get_supabase()
 
     hours = 336 if backfill else 0  # 14 days if backfill, else auto by weekday
@@ -790,7 +997,15 @@ def run_ingest(mode: str, backfill: bool = False) -> None:
                 print(f"  WARN [Formula 1] DB write failed: {ex}")
             continue
 
-        prompt = build_sport_prompt(label, tag, sport_entries, scores_text, mode, special_notes)
+        # On Thursday: AFL and NRL get a weekend fixture preview; all other sports get a wrap
+        if is_thursday and feed_key in ("afl", "nrl"):
+            sport_mode = "thursday_preview"
+        elif is_thursday:
+            sport_mode = "wrap"
+        else:
+            sport_mode = mode
+
+        prompt = build_sport_prompt(label, tag, sport_entries, scores_text, sport_mode, special_notes)
         print(f"  [{label}] {len(prompt):,} chars — calling Claude…")
         raw = call_claude(prompt)
         overview = _extract(raw, f"{tag}_OVERVIEW")
@@ -812,7 +1027,7 @@ def run_ingest(mode: str, backfill: bool = False) -> None:
 # ---------------------------------------------------------------------------
 # Compile — load from DB + write briefing + render
 # ---------------------------------------------------------------------------
-def compile_digest(mode: str, days_back: int = 14) -> tuple[dict, dict]:
+def compile_digest(mode: str, days_back: int = 14, is_thursday: bool = False) -> tuple[dict, dict]:
     """Load stored sport summaries, generate briefing. Returns (digest, scores_structured)."""
     aest = ZoneInfo("Australia/Sydney")
     cutoff = (datetime.now(aest).date() - timedelta(days=days_back)).isoformat()
@@ -853,7 +1068,7 @@ def compile_digest(mode: str, days_back: int = 14) -> tuple[dict, dict]:
             sport_summaries[label] = row.get("overview") or ""
 
     print("  [Briefing] calling Claude…")
-    briefing_prompt = build_briefing_prompt(sport_summaries, mode)
+    briefing_prompt = build_briefing_prompt(sport_summaries, mode, is_thursday=is_thursday)
     raw = call_claude(briefing_prompt)
     digest["briefing"] = _extract(raw, "BRIEFING")
     print(f"  [Briefing] done — {len(digest['briefing'])} chars")
@@ -900,13 +1115,20 @@ def main():
     aest = ZoneInfo("Australia/Sydney")
     now_aest = datetime.now(aest)
     date_str = now_aest.strftime("%B %d, %Y")
+    is_thursday = now_aest.weekday() == 3
 
     if args.mode:
         mode = args.mode
+        is_thursday = False  # explicit --mode override bypasses Thursday logic
     else:
         mode = "preview" if now_aest.weekday() in (3, 4) else "wrap"
 
-    edition_label = "Week Preview" if mode == "preview" else "Weekend Wrap"
+    if is_thursday:
+        edition_label = "Weekend Preview"
+    elif mode == "preview":
+        edition_label = "Week Preview"
+    else:
+        edition_label = "Weekend Wrap"
     print(f"Mode: {edition_label}")
 
     preview_path = os.path.join(os.path.dirname(__file__), "preview_sports.html")
@@ -932,7 +1154,7 @@ def main():
     run_ingest(mode, backfill=False)
 
     days_back = 7 if mode == "wrap" else 5
-    digest, scores_structured = compile_digest(mode, days_back=days_back)
+    digest, scores_structured = compile_digest(mode, days_back=days_back, is_thursday=is_thursday)
 
     print("Rendering HTML…")
     html_body = render_html(digest, date_str, edition_label, scores=scores_structured)
@@ -942,7 +1164,21 @@ def main():
     print(f"Preview saved → {preview_path}")
     webbrowser.open(f"file://{preview_path}")
 
+    # Generate social card from THE NUMBER stat
+    card_path = generate_sports_card(
+        digest.get("the_number_stat", ""),
+        digest.get("the_number_context", ""),
+        edition_label,
+    )
+    if card_path:
+        import subprocess as _sp
+        _sp.run(["open", card_path])  # opens in Preview on macOS
+
     if args.preview:
+        print(f"  Web preview: https://theoperatingbrief.com/preview/{os.environ.get('PREVIEW_TOKEN', '<PREVIEW_TOKEN>')}")
+        if not sys.stdin.isatty():
+            print("Running unattended — draft saved. Approve and send from the web preview.")
+            return
         print("\nReview the email, then type y to send.\n")
         answer = input("Send to subscribers now? (y/n): ").strip().lower()
         if answer != "y":
