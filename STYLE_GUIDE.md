@@ -124,7 +124,7 @@ Your daily AI-powered business briefing  [Subscribe]  [Unsubscribe]
 
 - **From**: The Operating Brief `<brief@theoperatingbrief.com>`
 - **Reply-to**: `hello@theoperatingbrief.com`
-- **Subject**: `The Operating Brief – May 1, 2026`
+- **Subject**: concise editorial hook with brand suffix, varied by day
 
 ---
 

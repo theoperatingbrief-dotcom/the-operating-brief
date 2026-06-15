@@ -128,6 +128,7 @@ def fetch_entries(feeds: dict) -> dict:
                             "title": e.get("title", "").strip(),
                             "url": e.get("link", ""),
                             "source": source,
+                            "summary": _clean_feed_text(e.get("summary") or e.get("description") or ""),
                         })
             except Exception as ex:
                 print(f"  WARN {url}: {ex}")
@@ -159,10 +160,84 @@ def _dedupe(entries):
     return out
 
 
+def _clean_feed_text(raw: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", raw or "")
+    text = html.unescape(text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:350]
+
+
+AU_PRIORITY_TERMS = [
+    (9, ("rba", "reserve bank", "interest rate", "interest rates", "inflation", "wages", "employment", "jobseeker", "tax", "cgt", "budget")),
+    (8, ("asx", "wall street", "market", "markets", "bank", "cba", "commonwealth bank", "bhp", "rio tinto", "mining", "miners", "steelworks", "whyalla")),
+    (7, ("energy", "power bill", "power bills", "electricity", "gas", "coal", "oil", "fuel", "renewables", "housing", "renters", "rental crisis")),
+    (6, ("business", "company", "companies", "liquidation", "insolvency", "insurer", "insurance", "suncorp", "bp", "conduct", "privacy", "cyber", "court breach")),
+    (5, ("industrial relations", "union", "workplace", "labour", "labor", "migration", "skills", "productivity", "supply", "freight", "logistics")),
+    (4, ("infrastructure", "procurement", "government funding", "agriculture", "soybean", "rice", "scallop", "seafood", "climate policy")),
+    (3, ("resources", "construction")),
+]
+
+AU_LOW_PRIORITY_TERMS = [
+    (-10, ("diphtheria", "public-health", "public health", "healthcare", "hospital", "death", "murder", "crime", "police search", "parole")),
+    (-8, ("wildlife", "turtle", "hatchlings", "sanctuary", "wombat", "sugar gliders", "ancestry dna")),
+    (-7, ("poll", "one nation")),
+    (-7, ("domestic violence", "cold war spy")),
+    (-16, ("rock shelter", "heritage")),
+    (-6, ("sport", "afl", "origin", "wallabies", "essendon", "coach")),
+    (-5, ("celebrity", "music", "film", "tv", "lifestyle", "quiz")),
+]
+
+SOURCE_PRIORITY_TERMS = [
+    (2, ("financial review", "rba")),
+    (1, ("abc", "guardian", "sydney morning herald")),
+]
+
+
+def _has_term(text: str, term: str) -> bool:
+    return re.search(rf"(?<![a-z0-9]){re.escape(term)}(?![a-z0-9])", text) is not None
+
+
+def _score_for_prompt(cat: str, entry: dict) -> int:
+    if cat != "australia":
+        return 0
+
+    text = f"{entry.get('source', '')} {entry.get('title', '')}".lower()
+    score = 0
+    for weight, terms in AU_PRIORITY_TERMS:
+        if any(_has_term(text, term) for term in terms):
+            score += weight
+    for weight, terms in AU_LOW_PRIORITY_TERMS:
+        if any(_has_term(text, term) for term in terms):
+            score += weight
+    for weight, terms in SOURCE_PRIORITY_TERMS:
+        if any(_has_term(text, term) for term in terms):
+            score += weight
+    return score
+
+
+def _rank_entries_for_prompt(cat: str, entries: list[dict]) -> list[dict]:
+    if cat != "australia":
+        return entries
+    if any("_editor_rank" in entry for entry in entries):
+        return entries
+    ranked = sorted(
+        entries,
+        key=lambda entry: (_score_for_prompt(cat, entry), -entries.index(entry)),
+        reverse=True,
+    )
+    positive = [entry for entry in ranked if _score_for_prompt(cat, entry) > 0]
+    return positive or ranked
+
+
 # ---------------------------------------------------------------------------
 # Claude CLI summarisation
 # ---------------------------------------------------------------------------
-def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = None, recent_stats: list[str] | None = None) -> str:
+def build_prompt(
+    entries: dict,
+    recent_topics: list[tuple[str, str]] | None = None,
+    recent_stats: list[str] | None = None,
+    recent_subjects: list[str] | None = None,
+) -> str:
     recent_block = ""
     if recent_topics:
         topic_list = "\n".join(f"- [{label}] {title}" for label, title in recent_topics[:30])
@@ -173,22 +248,79 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
                 f"THE NUMBER must not repeat a stat used recently. Recent stats: {stats_list}. "
                 "Pick a different figure from today's stories.\n"
             )
-        recent_block = (
-            f"TOPICS COVERED IN RECENT EDITIONS (with how long ago):\n{topic_list}\n"
+            recent_block = (
+                f"TOPICS COVERED IN RECENT EDITIONS (with how long ago):\n{topic_list}\n"
+                "Rules:\n"
+                "1. Same story, same angle, nothing new → skip it, use a fresher story instead.\n"
+                "2. Genuine new development → include it. If it was yesterday, say 'Following yesterday's report on X...'. "
+                "If it was earlier, say 'Previously, X...' or 'X has...'. One brief phrase only, then move on.\n"
+                f"{stats_note}\n"
+            )
+    subject_block = ""
+    if recent_subjects:
+        subject_list = "\n".join(f"- {subject}" for subject in recent_subjects[:5])
+        subject_block = (
+            f"RECENT SUBJECT LINES:\n{subject_list}\n"
             "Rules:\n"
-            "1. Same story, same angle, nothing new → skip it, use a fresher story instead.\n"
-            "2. Genuine new development → include it. If it was yesterday, say 'Following yesterday's report on X...'. "
-            "If it was earlier, say 'Previously, X...' or 'X has...'. One brief phrase only, then move on.\n"
-            f"{stats_note}\n"
+            "1. Do not repeat the same opening structure as a recent subject line.\n"
+            "2. Avoid using the same stat-led formula unless it is clearly the strongest option today.\n"
+            "3. Keep the subject concise, editorial, and specific.\n"
         )
     lines = [
         "You are producing a daily news digest for Australian business operators.",
         recent_block,
+        "CORE EDITORIAL TEST:",
+        "This is not a general news digest. Every story must earn its place for an Australian business operator.",
+        "Ask: does this affect revenue, costs, labour, regulation, technology adoption, capital allocation, supply chains, customers, risk, productivity, or strategic timing?",
+        "If not, it is probably not a lead story. Do not rescue weak stories with vague phrases like 'workforce implications', 'operational risk', 'insurance implications', or 'supply chain gaps'.",
+        "It is acceptable to omit a general-news story even if it is serious or emotionally important.\n",
+        "SECTION STRUCTURE RULE:",
+        "Each section has three layers: opening briefing, overview/snapshot, and story cards.",
+        "The opening briefing should carry the strongest lead or theme for that section.",
+        "The overview/snapshot must surface a different secondary story or angle from the briefing lead and from every story card below it.",
+        "Story cards may include the briefing lead story, but must not include the overview/snapshot story.",
+        "Do not use the same opening sentence, same framing, or same practical implication across a section overview and any story card in that section.",
+        "Do not create multiple story cards for the same policy dispute, company event, market move, or source cluster. Merge related developments into one stronger card.\n",
+        "AUSTRALIAN STORY PRIORITY:",
+        "Tier 1 — prioritise: RBA, rates, inflation, wages, employment, tax, budget, regulation, energy prices, housing policy, major ASX/company news, insolvencies, industrial relations, cyber/privacy law, migration/labour supply.",
+        "Tier 2 — include when clearly relevant: infrastructure, large procurement, major court/regulatory decisions, logistics, agriculture, climate/weather with direct economic impact, education/skills.",
+        "Tier 3 — usually avoid or keep factual and low: public health, local government disputes, isolated procurement criticism, crime, human-impact stories, culture-war politics.",
+        "Tier 4 — exclude unless exceptional: stories with no operator/economic consequence, or stories where the business angle requires hand-waving.",
+        "For Australian stories, choose Tier 1 before Tier 2, Tier 2 before Tier 3. Never lead Australia with Tier 3 if any Tier 1 or strong Tier 2 story is available.\n",
+        "AI & TECHNOLOGY STORY PRIORITY:",
+        "Tier 1 — prioritise: model releases with practical capability changes, enterprise AI adoption/pricing, security vulnerabilities, regulation, major funding/M&A, platform shifts, tooling that changes developer/operator workflows.",
+        "Tier 2 — include when clearly relevant: research with near-term product implications, open-source infrastructure, benchmarks that alter buying/build decisions, case studies with measurable productivity or cost outcomes.",
+        "Tier 3 — usually avoid or keep low: speculative opinion, generic AI hype/fear, consumer novelty features, demos without adoption, culture-war arguments about AI.",
+        "Tier 4 — exclude unless exceptional: academic minutiae, personality drama, vague futurism, stories where the operator angle is only 'AI is changing things'.\n",
+        "WORLD / GLOBAL BUSINESS STORY PRIORITY:",
+        "Tier 1 — prioritise: geopolitics affecting energy, shipping, trade, currency, commodities, sanctions, supply chains, major elections/policy shifts, central banks, major company/market shocks.",
+        "Tier 2 — include when clearly relevant: regional conflict developments with economic exposure, disease/climate events with material supply-chain or commodity impact, major legal/regulatory actions overseas.",
+        "Tier 3 — usually avoid or keep factual: humanitarian stories without clear Australian operator exposure, isolated violence, diplomatic rhetoric with no market or trade consequence.",
+        "Tier 4 — exclude unless exceptional: general world news where the implication is vague anxiety rather than a practical business signal.\n",
+        "PODCAST STORY PRIORITY:",
+        "Prioritise episodes with practical operator value: AI adoption, markets, productivity, leadership, strategy, regulation, or business-model change. Avoid celebrity chats or broad philosophy unless the guest/topic has direct business relevance.\n",
+        "THE BIG PICTURE PRIORITY:",
+        "Synthesis must connect the strongest Tier 1/Tier 2 developments across sections. Do not use The Big Picture to rescue weak stories. It should leave the reader with one or two practical strategic implications, not a mood summary.\n",
+        "VOICE AND TONE:",
+        "Write like a concise business news bulletin, not a podcast script or a chatty explainer.",
+        "Use direct declarative sentences. Prefer 'X announced Y', 'X rose to Y', 'X faces Z' over scene-setting or host-style commentary.",
+        "Be assertive where the facts support it. Do not hedge with soft phrases unless the source itself is uncertain.",
+        "Do not narrate the reader through the news. Report the fact, state the operator relevance, then move on.",
+        "Do not announce synthesis mechanics. Never open a paragraph with 'Two signals', 'Two separate signals', 'Several signals', 'The direction is clear', 'The message is clear', 'This points in one direction', or similar pattern-spotting scaffolding.",
+        "Open each section with the strongest concrete development, company, policy, number, or market move. Let the pattern emerge from the facts.",
+        "Avoid metaphors, vibes, and spoken-word colour. No 'watch this one', 'the shape is familiar', 'the signal is clear', 'tells its own story', 'pressure is building', 'moving fast', 'the bigger picture', or 'what matters now' unless those exact words are essential.",
+        "Do not sound like a podcast host. No rhetorical questions, no dramatic setup, no 'here's the thing', no 'let's zoom out', no 'worth keeping an eye on'.\n",
         "Based on the stories below, produce output in EXACTLY this format — no extra text:\n",
 
         "BRIEFING_START",
         "Write a 600-word briefing with four bold headings: **AI & Technology**, **Australian Business & Finance**, **World Markets & Global Business**, **The Big Picture**.",
-        "Tone: sharp, punchy, no jargon, short sentences, active voice. Every sentence must earn its place — no padding.",
+        "Tone: assertive business-news bulletin. Sharp, factual, no jargon, short sentences, active voice. Every sentence must earn its place — no padding.",
+        "Start each headed section with a specific fact. Do not start with abstract framing such as 'Two signals point in the same direction', 'This week shows', 'A clear pattern is emerging', or 'The broader story is'.",
+        "Use concrete verbs: announced, reported, rose, fell, cut, added, delayed, approved, rejected, warned, fined, sued, acquired, launched.",
+        "Avoid soft host phrases: 'set the tone', 'sent a signal', 'watch this space', 'that matters because', 'operators should note', 'it is a reminder', 'pressure is mounting', 'the stakes are rising'.",
+        "Do not force a business angle onto every public-health, crime, disaster, public-sector procurement, or human-impact story. If the operator implication is weak or speculative, say it is primarily non-business and keep it brief, or choose a stronger business story instead.",
+        "Never describe the available story lineup, candidate pool, feed quality, or selection process. The reader should only see the final editorial judgement.",
+        "For the Australian Business & Finance section, lead with genuine business, markets, policy, labour, tax, energy, housing, company, or regulatory news. Do not lead with public health, crime, wildlife, sport, or soft human-interest stories.",
         "No stage directions, no script labels. Flow as clean readable prose.",
         "IMPORTANT: Group related sentences into paragraphs of 2-4 sentences. Separate each paragraph with a blank line. Do not put every sentence on its own line.",
         "End with 1 sentence pointing readers to the full digest below.",
@@ -209,7 +341,13 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
         "SUBJECT_LINE_START",
         "Write one email subject line (max 55 characters) that would make a time-poor Australian open this email.",
         "Lead with the most compelling number or fact from today's stories. No clickbait. No exclamation marks.",
-        "Format: <stat or hook> | The Operating Brief",
+        "Vary the shape day to day so we do not keep repeating the same stat-led formula.",
+        "Prefer one of these styles, choosing the one that best fits the news:",
+        "- <company or issue> faces <consequence> | The Operating Brief",
+        "- <short editorial hook> | The Operating Brief",
+        "- <stat or magnitude> at stake in <issue> | The Operating Brief",
+        "Avoid leading with a raw dollar figure or percentage unless it is unmistakably the strongest hook.",
+        subject_block,
         "SUBJECT_LINE_END\n",
 
         "SOCIAL_CAPTION_START",
@@ -223,6 +361,8 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
 
         "AI_OVERVIEW_START",
         "2-3 sentences highlighting a secondary AI story — not the lead story, which is already covered in the opening briefing above. Surface something the reader hasn't seen yet. Put each sentence on its own line.",
+        "Use the AI priority ladder. Prefer practical capability, cost, security, regulation, adoption, tooling, or investment signals over generic AI hype or commentary.",
+        "Do not use the same story or same angle as any AI_STORY card below.",
         "AI_OVERVIEW_END\n",
 
         "Then for the 5 most important AI stories, each block formatted EXACTLY as:",
@@ -232,6 +372,7 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
         "TAG: <one of: Lab Announcement | Research | Industry News | Community | Business>",
         "URL: <url>",
         "SUMMARY: <2 sentences>",
+        "Summary must explain the practical operator relevance: capability, cost, risk, workflow, regulation, security, competition, or capital allocation. If none exists, choose a different AI story.",
         "AI_STORY_END\n",
 
         "Then for up to 3 podcast episodes (48hr window), each:",
@@ -240,10 +381,13 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
         "SHOW: <show name>",
         "URL: <url>",
         "SUMMARY: <1-2 sentences>",
+        "Only include episodes with a clear operator/business reason to listen.",
         "PODCAST_END\n",
 
         "WORLD_OVERVIEW_START",
         "2-3 sentences highlighting a secondary global story — not the lead story already covered in the opening briefing. Surface something the reader hasn't seen yet. Put each sentence on its own line.",
+        "Use the global priority ladder. Prefer energy, trade, shipping, currency, commodities, sanctions, central banks, policy, and supply-chain exposure over general world-news drama.",
+        "Do not use the same story or same angle as any WORLD_STORY card below.",
         "WORLD_OVERVIEW_END\n",
 
         "Then for the 3 most important world stories:",
@@ -252,18 +396,23 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
         "SOURCE: <source>",
         "URL: <url>",
         "SUMMARY: <2 sentences>",
+        "Summary must name the practical Australian operator exposure: energy, trade, freight, commodity prices, market risk, currency, regulation, supply chain, or demand. If none exists, keep it factual and low or choose a stronger story.",
         "WORLD_STORY_END\n",
 
         "AUS_OVERVIEW_START",
         "2-3 sentences highlighting a secondary Australian story — not the lead story already covered in the opening briefing. Surface something the reader hasn't seen yet. Put each sentence on its own line.",
+        "Use only Tier 1 or strong Tier 2 Australian stories. Never discuss the story lineup, feed quality, or the absence of stronger stories.",
+        "Do not include public-health, crime, wildlife, sport, human-impact, or minor public-sector procurement stories unless there is a concrete, source-supported operator consequence. If the angle is weak, skip the story entirely.",
+        "Do not use the same story or same angle as any AUS_STORY card below. If the briefing leads with the top-ranked Australian story, use another qualified story here and exclude that overview story from the cards.",
         "AUS_OVERVIEW_END\n",
 
-        "Then for the 3 most important Australian stories:",
+        "Then for up to 3 most important Australian stories:",
         "AUS_STORY_START",
         "TITLE: <title>",
         "SOURCE: <source>",
         "URL: <url>",
         "SUMMARY: <2 sentences>",
+        "Use only Tier 1 or strong Tier 2 stories. Do not fill the list with public-health, crime, wildlife, sport, or soft human-interest stories. If fewer than 3 stories qualify, output fewer than 3 blocks.",
         "AUS_STORY_END\n",
 
         "=== STORIES ===\n",
@@ -273,6 +422,7 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
         lines += [
             "BIGTECH_OVERVIEW_START",
             "2-3 sentences highlighting a secondary big-tech AI move this week — not the lead story already covered in the opening briefing. Surface something the reader hasn't seen yet. Put each sentence on its own line.",
+            "Do not use the same story or same angle as any BIGTECH_STORY card below.",
             "BIGTECH_OVERVIEW_END\n",
             "Then for up to 3 big-tech stories (Microsoft/Apple/Meta/Amazon/Google/Oracle/Workday/Salesforce/SAP), each:",
             "BIGTECH_STORY_START",
@@ -284,11 +434,14 @@ def build_prompt(entries: dict, recent_topics: list[tuple[str, str]] | None = No
             "BIGTECH_STORY_END\n",
         ]
 
-    limits = {"ai": 15, "podcast": 3, "world": 12, "australia": 12, "bigtech": 20}
+    limits = {"ai": 15, "podcast": 3, "world": 12, "australia": 24, "bigtech": 20}
     for cat, items in entries.items():
         lines.append(f"--- {cat.upper()} ---")
-        for item in items[:limits.get(cat, 12)]:
+        ranked_items = _rank_entries_for_prompt(cat, items)
+        for item in ranked_items[:limits.get(cat, 12)]:
             lines.append(f"[{item['source']}] {item['title']}")
+            if item.get("summary"):
+                lines.append(f"  Summary: {item['summary']}")
             lines.append(f"  {item['url']}")
         lines.append("")
 
@@ -317,6 +470,90 @@ def call_claude(prompt: str, retries: int = 3, timeout: int = 600) -> str:
     raise RuntimeError("Anthropic API failed")
 
 
+def build_australia_ranking_prompt(
+    candidates: list[dict],
+    recent_topics: list[tuple[str, str]] | None = None,
+) -> str:
+    recent_block = ""
+    if recent_topics:
+        recent_block = "\n".join(f"- {title}" for _, title in recent_topics[:20])
+
+    lines = [
+        "You are the assigning editor for The Operating Brief, a daily newsletter for Australian business operators.",
+        "Rank Australian stories by genuine operator relevance, not general-news prominence.",
+        "",
+        "Core test: does the story affect revenue, costs, labour, regulation, technology adoption, capital allocation, supply chains, customers, risk, productivity, or strategic timing?",
+        "Prioritise: RBA, rates, inflation, wages, employment, tax, budget, regulation, energy prices, housing policy, major ASX/company news, insolvencies, industrial relations, cyber/privacy law, migration/labour supply, major infrastructure, major court/regulatory decisions, logistics, agriculture, climate/weather with direct economic impact, education/skills.",
+        "Usually exclude: public health, crime, wildlife, sport, human-impact stories, culture-war politics, isolated procurement criticism, and stories where the business angle requires hand-waving.",
+        "Do not select a story just because it contains a business-sounding keyword. Select it only if the actual story is useful to an Australian operator.",
+        "Avoid repeating stories already covered recently unless there is a genuinely new development.",
+        "",
+        "Return ONLY this exact format with up to 8 ranked items:",
+        "AU_RANKING_START",
+        "AU001 | Tier 1 | one concrete reason this matters to operators",
+        "AU002 | Tier 2 | one concrete reason this matters to operators",
+        "AU_RANKING_END",
+        "",
+    ]
+    if recent_block:
+        lines += [
+            "RECENTLY COVERED TOPICS:",
+            recent_block,
+            "",
+        ]
+    lines.append("CANDIDATES:")
+    for item in candidates:
+        lines.append(f"{item['rank_id']}: [{item['source']}] {item['title']}")
+        if item.get("summary"):
+            lines.append(f"Summary: {item['summary']}")
+        lines.append(f"URL: {item['url']}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def rank_australian_entries_with_claude(
+    entries: dict,
+    recent_topics: list[tuple[str, str]] | None = None,
+) -> dict:
+    australia = entries.get("australia") or []
+    if not australia:
+        return entries
+
+    prefiltered = _rank_entries_for_prompt("australia", australia)
+    candidates = [dict(item, rank_id=f"AU{i:03d}") for i, item in enumerate(prefiltered[:50], 1)]
+    if not candidates:
+        return entries
+
+    print("Ranking Australian stories with Claude…")
+    print(f"  {len(candidates)} candidate(s) after deterministic pre-filter")
+    raw = call_claude(build_australia_ranking_prompt(candidates, recent_topics=recent_topics))
+
+    id_to_item = {item["rank_id"]: item for item in candidates}
+    ranked_ids = []
+    for line in raw.splitlines():
+        match = re.match(r"\s*(AU\d{3})\s*\|", line)
+        if match and match.group(1) in id_to_item and match.group(1) not in ranked_ids:
+            ranked_ids.append(match.group(1))
+
+    if not ranked_ids:
+        print("  WARN: no Australian ranking parsed; keeping deterministic order")
+        return {**entries, "australia": prefiltered}
+
+    selected = []
+    for index, item_id in enumerate(ranked_ids, 1):
+        item = {k: v for k, v in id_to_item[item_id].items() if k != "rank_id"}
+        item["_editor_rank"] = index
+        selected.append(item)
+    selected_urls = {item.get("url") for item in selected}
+    selected_titles = {item.get("title") for item in selected}
+    remaining = [
+        item for item in prefiltered
+        if item.get("url") not in selected_urls and item.get("title") not in selected_titles
+    ]
+    print(f"  Ranked {len(selected)} Australian story/stories for editorial priority")
+    return {**entries, "australia": selected + remaining}
+
+
 # ---------------------------------------------------------------------------
 # Parse Claude response
 # ---------------------------------------------------------------------------
@@ -339,13 +576,53 @@ def _extract_blocks(text: str, tag: str) -> list[dict]:
     return items
 
 
+def _clean_ai_scaffolding(text: str) -> str:
+    cleaned = text or ""
+    scaffolds = [
+        r"Two separate signals this week point in the same direction:\s*",
+        r"Two signals this week point in the same direction:\s*",
+        r"Several signals this week point in the same direction:\s*",
+        r"The direction is clear:\s*",
+        r"The message is clear:\s*",
+        r"A clear pattern is emerging:\s*",
+        r"The broader story is this:\s*",
+    ]
+    for pattern in scaffolds:
+        cleaned = re.sub(pattern, "", cleaned, count=1, flags=re.IGNORECASE)
+    return cleaned.strip()
+
+
+def load_todays_markets_number() -> dict:
+    import json as _json
+
+    path = os.path.join(os.path.dirname(__file__), "markets_number.json")
+    today = datetime.now(ZoneInfo("Australia/Sydney")).date().isoformat()
+    try:
+        with open(path) as f:
+            data = _json.load(f)
+    except (FileNotFoundError, ValueError):
+        return {}
+
+    if data.get("date") == today:
+        return data
+
+    # Backwards-compatible fallback for files written before date metadata existed.
+    try:
+        modified = datetime.fromtimestamp(os.path.getmtime(path), ZoneInfo("Australia/Sydney")).date().isoformat()
+        if modified == today:
+            return data
+    except OSError:
+        pass
+    return {}
+
+
 def parse_response(raw: str) -> dict:
     the_number_block = _extract_blocks(raw, "THE_NUMBER")
     the_number = the_number_block[0] if the_number_block else {}
     social_block = _extract_blocks(raw, "SOCIAL_CAPTION")
     social = social_block[0] if social_block else {}
     return {
-        "briefing":              _extract(raw, "BRIEFING"),
+        "briefing":              _clean_ai_scaffolding(_extract(raw, "BRIEFING")),
         "wtmfy":                 re.sub(r'^\*?\*?What This Means For You\*?\*?:?\s*', '', _extract(raw, "WTMFY"), flags=re.IGNORECASE),
         "the_number_stat":       the_number.get("stat", ""),
         "the_number_context":    the_number.get("context", ""),
@@ -601,11 +878,12 @@ def fetch_previously_sent_urls(days: int = 1) -> set[str]:
         return set()
 
 
-def fetch_recently_covered_topics(days: int = 3) -> tuple[list[tuple[str, str]], list[str]]:
-    """Return (dated_topics, recent_stats) from the last N editions.
+def fetch_recently_covered_topics(days: int = 3) -> tuple[list[tuple[str, str]], list[str], list[str]]:
+    """Return (dated_topics, recent_stats, recent_subjects) from the last N editions.
 
     dated_topics: list of (date_label, title) e.g. ("yesterday", "Nvidia commits $40B...")
     recent_stats: list of stat strings from The Number e.g. ["$40 billion", "1 in 3"]
+    recent_subjects: list of recent email subject lines
     """
     try:
         sb = get_supabase()
@@ -615,12 +893,16 @@ def fetch_recently_covered_topics(days: int = 3) -> tuple[list[tuple[str, str]],
             (today - timedelta(days=i)).strftime("%Y-%m-%d")
             for i in range(1, days + 1)
         ]
-        result = sb.table("editions").select("slug,html").in_("slug", slugs).execute()
+        result = sb.table("editions").select("slug,subject,html").in_("slug", slugs).execute()
         dated_topics: list[tuple[str, str]] = []
         recent_stats: list[str] = []
+        recent_subjects: list[str] = []
 
         for row in result.data or []:
             slug = row.get("slug", "")
+            subject = (row.get("subject") or "").strip()
+            if subject:
+                recent_subjects.append(subject)
             html = row.get("html") or ""
             try:
                 edition_date = datetime.strptime(slug[:10], "%Y-%m-%d").date()
@@ -639,11 +921,14 @@ def fetch_recently_covered_topics(days: int = 3) -> tuple[list[tuple[str, str]],
                 if s:
                     recent_stats.append(s)
 
-        print(f"  Loaded {len(dated_topics)} recent topics and {len(recent_stats)} recent stats for dedup")
-        return dated_topics, recent_stats
+        print(
+            f"  Loaded {len(dated_topics)} recent topics, {len(recent_stats)} recent stats, "
+            f"and {len(recent_subjects)} recent subjects for dedup"
+        )
+        return dated_topics, recent_stats, recent_subjects
     except Exception as ex:
         print(f"  WARN: could not fetch recent topics: {ex}")
-        return [], []
+        return [], [], []
 
 
 def filter_seen_entries(entries: dict, seen_urls: set[str]) -> dict:
@@ -962,7 +1247,8 @@ def main():
     print("Filtering stories already sent in previous editions…")
     seen_urls = fetch_previously_sent_urls(days=1)
     entries = filter_seen_entries(entries, seen_urls)
-    recent_topics, recent_stats = fetch_recently_covered_topics(days=3)
+    recent_topics, recent_stats, recent_subjects = fetch_recently_covered_topics(days=3)
+    entries = rank_australian_entries_with_claude(entries, recent_topics=recent_topics)
 
     total = sum(len(v) for v in entries.values())
     print(f"  {total} stories total after deduplication")
@@ -972,7 +1258,12 @@ def main():
         return
 
     print("Summarising with Claude…")
-    prompt = build_prompt(entries, recent_topics=recent_topics, recent_stats=recent_stats)
+    prompt = build_prompt(
+        entries,
+        recent_topics=recent_topics,
+        recent_stats=recent_stats,
+        recent_subjects=recent_subjects,
+    )
     raw = call_claude(prompt)
 
     print("Parsing response…")
@@ -990,18 +1281,9 @@ def main():
     with open(preview_path, "w") as f:
         f.write(html_body)
 
-    # Try to load today's markets number for combined caption
-    import json as _json
-    markets_number_path = os.path.join(os.path.dirname(__file__), "markets_number.json")
-    markets_number = {}
-    try:
-        with open(markets_number_path) as f:
-            markets_number = _json.load(f)
-    except (FileNotFoundError, ValueError):
-        pass
-
     daily_stat = digest.get('the_number_stat', '')
     daily_context = digest.get('the_number_context', '')
+    markets_number = load_todays_markets_number()
     markets_stat = markets_number.get('stat', '')
     markets_context = markets_number.get('context', '')
 
@@ -1021,10 +1303,7 @@ def main():
     print(f"  Social caption saved → {social_path}")
 
     # LinkedIn-optimised version (copy-paste ready)
-
-    # LinkedIn-optimised version (copy-paste ready)
     linkedin_path = os.path.join(os.path.dirname(__file__), "social_linkedin.txt")
-    stat = digest.get('the_number_stat', '')
     hashtags_raw = digest.get('social_hashtags', '')
     # Trim to 5 hashtags for LinkedIn (algorithm penalises hashtag stuffing)
     hashtags_trimmed = " ".join(hashtags_raw.split()[:5])
@@ -1073,7 +1352,7 @@ def main():
         f.write(f"TITLE: {subject_line}\n\n")
         f.write("---\n\n")
 
-        # The Numbers
+        # The Number
         if markets_stat:
             f.write("THE NUMBERS\n\n")
             f.write(f"{daily_stat} — {daily_context}\n\n")

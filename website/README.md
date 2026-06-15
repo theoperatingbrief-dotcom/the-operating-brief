@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Website
 
-## Getting Started
+This is the Next.js App Router site for The Operating Brief newsletter suite. It handles public subscription pages, archives, unsubscribe flows, admin controls, and token-protected Operating Brief preview approval.
 
-First, run the development server:
+For overall product intent and backend generator context, read the root `README.md` first.
+
+## Main Surfaces
+
+- `/` - The Operating Brief subscribe page, including referral code capture.
+- `/markets` - The Markets Brief subscribe page.
+- `/sporting` - The Sporting Brief subscribe page.
+- `/archive` and `/archive/[slug]` - Operating Brief archive.
+- `/markets/archive` and `/markets/archive/[slug]` - Markets archive.
+- `/sporting/archive` and `/sporting/archive/[slug]` - Sporting archive.
+- `/unsubscribe`, `/markets/unsubscribe`, `/sporting/unsubscribe` - unsubscribe pages.
+- `/admin` - password-protected dashboard for subscriber counts and generator jobs.
+- `/preview/[token]` - token-protected Operating Brief draft controls.
+
+## API Routes
+
+- `/api/subscribe` - Operating Brief subscribe/reactivate, welcome email, referral link creation.
+- `/api/markets/subscribe` - Markets Brief subscribe/reactivate and welcome email.
+- `/api/sporting/subscribe` - Sporting Brief subscribe/reactivate and welcome email.
+- `/api/unsubscribe` - Operating Brief unsubscribe.
+- `/api/markets/unsubscribe` - Markets unsubscribe.
+- `/api/sporting/unsubscribe` - Sporting unsubscribe.
+- `/api/admin/login` - admin password check.
+- `/api/admin/subscribers` - active subscriber counts for Operating, Markets, Sporting, and Paddock.
+- `/api/admin/run` - streams Python generator output for preview/send jobs.
+- `/api/preview/[token]/generate` - dispatches the GitHub Action that generates an Operating Brief draft.
+- `/api/preview/[token]/send` - sends the Supabase `draft` Operating Brief to active subscribers.
+
+## Local Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+When using `/admin`, also run the root preview file server if you want "Open preview" to work:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cd ..
+python3 serve.py
+```
 
-## Learn More
+The admin opens preview HTML from `http://localhost:8765`.
 
-To learn more about Next.js, take a look at the following resources:
+## Environment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The website expects:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `RESEND_API_KEY`
+- `ADMIN_PASSWORD`
+- `PREVIEW_TOKEN`
+- `GITHUB_PAT` if `/preview/[token]/generate` should trigger GitHub Actions
 
-## Deploy on Vercel
+Do not commit `.env.local` or `.env.production`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Design Notes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The website should match the newsletter style: white editorial surfaces, black/grey typography, ruled lines, no gradients, no rounded marketing cards, and minimal colour. Keep changes aligned with `../STYLE_GUIDE.md`.
+
+The site is support infrastructure for the email products. Avoid turning public pages into broad marketing landing pages unless the product direction changes.

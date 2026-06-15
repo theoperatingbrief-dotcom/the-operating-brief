@@ -396,21 +396,55 @@ def build_prompt(entries: dict, market_data: str, movers_text: str, day_of_week:
         "GLOBAL RULES:",
         "1. Always use specific numbers — index levels, percentages, dollar amounts. Never say 'markets fell' without the figure.",
         "2. If a number is not in the source data, omit it. Do not guess or approximate.",
-        "3. Pure information — no editorial framing, no dramatic language, no vague descriptors.",
-        "4. Short sentences. Active voice. Every word must earn its place.",
+        "3. Write in an AFR-style markets column voice: measured, commercially literate, concise, and specific.",
+        "4. Add a touch of Bloomberg discipline: tight numbers, clear catalysts, no filler, no dramatic language.",
         f"5. Australian perspective — lead with ASX implications of {us_session_ref}'s US moves.",
         "6. For ASX movers >5% with no direct company news: first check the macro and global stories for an indirect catalyst",
         "   (e.g. US inflation data hitting rate-sensitive stocks like banks; CGT/negative gearing policy changes hitting property-linked stocks;",
         "   commodity price moves hitting miners). Attribute the move to the macro catalyst if one plausibly fits.",
-        "   Only say 'no news catalyst' if you have genuinely checked macro, global, and commodity stories and found nothing relevant.\n",
+        "   Only say 'no news catalyst' if you have genuinely checked macro, global, and commodity stories and found nothing relevant.",
+        "7. Avoid contradictory leads. If US markets are positive but the ASX read is negative, name the offsetting drag in the same sentence",
+        "   (e.g. weaker commodities, banks, futures, AUD, China, rates, or a major local stock/sector). If no offsetting drag is in the data,",
+        "   do not say the ASX is set to slide; describe the read as mixed or selectively supported.\n",
+
+        "OPENING_SIGNAL_START",
+        "RISK_TONE: <Risk-on, risk-off, or mixed — max 8 words, include the reason>",
+        "ASX_READ: <Likely ASX open/read-through — max 12 words>",
+        "KEY_DRIVER: <single dominant driver — max 10 words>",
+        "OPENING_SIGNAL_END\n",
 
         "BRIEFING_START",
-        "Write a 300-word pre-market opening note. Australian investors are the audience — frame everything through an ASX lens.",
-        f"Paragraph 1 (2-3 sentences): ASX implied direction at open — what happened {us_session_ref} in the US and how it flows through to Australian stocks and sectors. Use specific index levels.",
-        "Paragraph 2 (2-3 sentences): The dominant Australian or macro theme right now (RBA, ABS data, commodity moves, Chinese demand, Australian earnings). Be specific — name the event, number, or company.",
-        "Paragraph 3 (1-2 sentences): Two or three specific ASX stocks or sectors to watch at open and the precise reason why.",
-        "Separate paragraphs with a blank line. No headings. No bullet points.",
+        "Write a 120-150 word AFR-style pre-market note for Australian investors.",
+        f"Paragraph 1: lead with the ASX read-through from {us_session_ref}'s US move, then the dominant market driver. Include the most important numbers.",
+        "If the ASX direction differs from Wall Street's direction, explain the divergence before the sentence ends.",
+        "Paragraph 2: explain the sector or stock implications in plain English. Use restrained editorial judgement, not hype.",
+        "Separate paragraphs with a blank line. No headings. Avoid 'appears' and 'watch point'.",
         "BRIEFING_END\n",
+
+        "MARKET_TAPE_START",
+        "ITEM: <US index/sector move with level and % — direct ASX implication>",
+        "ITEM: <ASX 200 previous session close and % — sector implication>",
+        "ITEM: <FX/rates/commodity move with price and % — direct ASX implication>",
+        "ITEM: <one cross-asset confirmation or divergence, if supported by data>",
+        "MARKET_TAPE_END\n",
+
+        "WHY_IT_MATTERS_START",
+        "ITEM: <one AFR-style editorial sentence on the tradeable implication for Australian equities>",
+        "ITEM: <one sentence on the main macro/commodity/rates transmission channel>",
+        "WHY_IT_MATTERS_END\n",
+
+        "WATCHLIST_START",
+        "ITEM: <ASX ticker/company> — <specific open catalyst; include % move or price where available>",
+        "ITEM: <ASX ticker/company> — <specific open catalyst; include % move or price where available>",
+        "ITEM: <ASX ticker/company> — <specific open catalyst; include % move or price where available>",
+        "WATCHLIST_END\n",
+
+        "MARKET_IMPACT_START",
+        "ITEM: <market-moving news event> — Why it matters: <which ASX sector/stocks are most exposed> — What to watch: <the number, release, price, or level that would change the view>",
+        "ITEM: <market-moving news event> — Why it matters: <which ASX sector/stocks are most exposed> — What to watch: <the number, release, price, or level that would change the view>",
+        "ITEM: <market-moving news event> — Why it matters: <which ASX sector/stocks are most exposed> — What to watch: <the number, release, price, or level that would change the view>",
+        "Only include news with a plausible price impact today or this week. Prioritise catalysts over general background.",
+        "MARKET_IMPACT_END\n",
 
         "ASX_OVERVIEW_START",
         "1-sentence snapshot of the single most important ASX story or theme today. Name specific companies or sectors.",
@@ -429,9 +463,11 @@ def build_prompt(entries: dict, market_data: str, movers_text: str, day_of_week:
 
         "COMMODITY_OVERVIEW_START",
         "1-sentence snapshot of the most significant commodity move. Prioritise iron ore, coal, and LNG — the commodities that drive Australian export earnings and ASX mining stocks.",
+        "Only use gold if it is the clear market leader today. Otherwise keep gold brief or omit it entirely.",
         "COMMODITY_OVERVIEW_END\n",
 
         "2 most important commodity stories (iron ore, coal, LNG, oil, gold, copper — weight toward Australian export commodities):",
+        "Do not let gold crowd out more useful Australian signals. Prefer iron ore, coal, LNG, oil, or copper when they are the real market drivers.",
         "COMMODITY_STORY_START\nTITLE: <title>\nSOURCE: <source>\nURL: <url>\nSUMMARY: <2 sentences — include specific commodity, price direction, and ASX implication>\nCOMMODITY_STORY_END\n",
 
         "GLOBAL_OVERVIEW_START",
@@ -444,6 +480,8 @@ def build_prompt(entries: dict, market_data: str, movers_text: str, day_of_week:
         "THE_NUMBER_START",
         "STAT: <one standout market stat from today — short and punchy, max 4 words. Examples: '-2.3%', '$3,420/oz', '4.34%'. Just the figure.>",
         "CONTEXT: <one sentence explaining what this stat is and why it matters to an Australian investor or business>",
+        "Prefer the broadest market signal available: ASX 200, AUD/USD, US 10Y, a major index move, or a sector catalyst. Do not default to gold unless gold is the day's clearest and most tradeable move.",
+        "Avoid repeating gold from day to day. If gold is not the dominant cross-asset driver, choose a different stat.",
         "THE_NUMBER_END\n",
 
         "SUBJECT_LINE_START",
@@ -498,7 +536,7 @@ def _extract_blocks(text: str, tag: str) -> list[dict]:
     for block in blocks:
         item = {}
         for line in block.strip().splitlines():
-            for key in ("TITLE", "SOURCE", "URL", "SUMMARY", "STAT", "CONTEXT"):
+            for key in ("TITLE", "SOURCE", "URL", "SUMMARY", "STAT", "CONTEXT", "RISK_TONE", "ASX_READ", "KEY_DRIVER"):
                 if line.startswith(f"{key}:"):
                     item[key.lower()] = line[len(key)+1:].strip()
         if item:
@@ -506,11 +544,27 @@ def _extract_blocks(text: str, tag: str) -> list[dict]:
     return items
 
 
+def _extract_items(text: str, tag: str) -> list[str]:
+    block = _extract(text, tag)
+    items = []
+    for line in block.splitlines():
+        if line.startswith("ITEM:"):
+            items.append(line[len("ITEM:"):].strip())
+    return items
+
+
 def parse_response(raw: str) -> dict:
     the_number_blocks = _extract_blocks(raw, "THE_NUMBER")
     the_number = the_number_blocks[0] if the_number_blocks else {}
+    opening_signal_blocks = _extract_blocks(raw, "OPENING_SIGNAL")
+    opening_signal = opening_signal_blocks[0] if opening_signal_blocks else {}
     return {
         "briefing":           _extract(raw, "BRIEFING"),
+        "opening_signal":     opening_signal,
+        "market_tape":        _extract_items(raw, "MARKET_TAPE"),
+        "why_it_matters":     _extract_items(raw, "WHY_IT_MATTERS"),
+        "watchlist":          _extract_items(raw, "WATCHLIST"),
+        "market_impact":      _extract_items(raw, "MARKET_IMPACT"),
         "macro_overview":     _extract(raw, "MACRO_OVERVIEW"),
         "macro_stories":      _extract_blocks(raw, "MACRO_STORY"),
         "asx_overview":       _extract(raw, "ASX_OVERVIEW"),
@@ -541,6 +595,72 @@ def _story_card(item: dict) -> str:
     <p style="margin:0;font-size:14px;color:#444;line-height:1.6;font-family:Arial,sans-serif;">{_e(item.get('summary',''))}</p>
   </td></tr>
 </table>"""
+
+
+def _opening_briefing_html(d: dict) -> str:
+    signal = d.get("opening_signal") or {}
+    briefing = d.get("briefing", "").strip()
+    tape = d.get("market_tape") or []
+    why = d.get("why_it_matters") or []
+    watchlist = d.get("watchlist") or []
+
+    if not any([signal, tape, why, watchlist]):
+        para_style = 'margin:0 0 16px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;'
+        parts = []
+        for para in re.split(r'\n{2,}', briefing):
+            para = para.strip()
+            if para:
+                parts.append(f'<p style="{para_style}">{_e(para)}</p>')
+        return "".join(parts)
+
+    def _signal_cell(label: str, value: str) -> str:
+        return f"""
+        <td width="33.33%" style="padding:12px 10px;border-right:1px solid #e6e1d8;vertical-align:top;">
+          <p style="margin:0 0 5px;font-size:9px;color:#8b8276;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">{label}</p>
+          <p style="margin:0;font-size:13px;color:#111;font-weight:700;line-height:1.35;font-family:Arial,sans-serif;">{_e(value)}</p>
+        </td>"""
+
+    def _items_html(items: list[str], color: str = "#111") -> str:
+        return "".join(
+            f'<tr><td style="padding:8px 0;border-bottom:1px solid #eee;font-size:14px;color:{color};line-height:1.45;font-family:Arial,sans-serif;">{_e(item)}</td></tr>'
+            for item in items
+        )
+
+    watch_rows = "".join(
+        f'<tr><td style="padding:9px 0;border-bottom:1px solid #eee;font-size:14px;color:#111;line-height:1.45;font-family:Arial,sans-serif;">{_e(item)}</td></tr>'
+        for item in watchlist
+    )
+
+    briefing_parts = []
+    for para in re.split(r'\n{2,}', briefing):
+        para = para.strip()
+        if para:
+            briefing_parts.append(f'<p style="margin:0 0 15px;font-size:17px;color:#222;line-height:1.65;font-family:Georgia,serif;">{_e(para)}</p>')
+    briefing_html = "".join(briefing_parts)
+
+    return f"""
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4ee;border-top:3px solid #111;border-bottom:1px solid #e6e1d8;margin-bottom:22px;">
+      <tr>
+        {_signal_cell("Market Bias", signal.get("risk_tone", ""))}
+        {_signal_cell("ASX Read", signal.get("asx_read", ""))}
+        {_signal_cell("Main Driver", signal.get("key_driver", ""))}
+      </tr>
+    </table>
+    {briefing_html}
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      <tr>
+        <td width="50%" style="vertical-align:top;padding-right:18px;">
+          <p style="margin:0 0 8px;font-size:10px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;font-weight:700;">Market Tape</p>
+          <table width="100%" cellpadding="0" cellspacing="0">{_items_html(tape)}</table>
+        </td>
+        <td width="50%" style="vertical-align:top;padding-left:18px;">
+          <p style="margin:0 0 8px;font-size:10px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;font-weight:700;">The Read</p>
+          <table width="100%" cellpadding="0" cellspacing="0">{_items_html(why)}</table>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:0 0 8px;font-size:10px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;font-weight:700;">Stocks In Play</p>
+    <table width="100%" cellpadding="0" cellspacing="0">{watch_rows}</table>"""
 
 
 def _market_snapshot_html(market_data: list[dict]) -> str:
@@ -652,17 +772,33 @@ def _section(label: str, overview: str, stories: list) -> str:
   <tr><td style="padding:0 48px;"><hr style="border:none;border-top:1px solid #ddd;margin:0 0 32px;"></td></tr>"""
 
 
-def render_html(d: dict, date_str: str, market_data: list[dict], gainers: list[dict], losers: list[dict]) -> str:
-    briefing_html_parts = []
-    para_style = 'margin:0 0 16px;font-size:16px;color:#222;line-height:1.75;font-family:Georgia,serif;'
-    for para in re.split(r'\n{2,}', d["briefing"].strip()):
-        para = para.strip()
-        if para:
-            briefing_html_parts.append(f'<p style="{para_style}">{_e(para)}</p>')
-    briefing_html = "".join(briefing_html_parts)
+def _market_impact_html(items: list[str]) -> str:
+    if not items:
+        return ""
 
+    rows = "".join(
+        f"""
+      <tr><td style="padding:14px 0;border-bottom:1px solid #e8e8e8;">
+        <p style="margin:0;font-size:15px;color:#111;line-height:1.55;font-family:Arial,sans-serif;">{_e(item)}</p>
+      </td></tr>"""
+        for item in items
+    )
+
+    return f"""
+  <tr><td style="padding:0 48px 32px;">
+    <p style="margin:0 0 20px;font-size:11px;color:#888;letter-spacing:.12em;text-transform:uppercase;font-family:Arial,sans-serif;">What Moves Markets</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-top:3px solid #111;border-collapse:collapse;background:#fbfaf7;">
+      {rows}
+    </table>
+  </td></tr>
+  <tr><td style="padding:0 48px;"><hr style="border:none;border-top:1px solid #ddd;margin:0 0 32px;"></td></tr>"""
+
+
+def render_html(d: dict, date_str: str, market_data: list[dict], gainers: list[dict], losers: list[dict]) -> str:
+    briefing_html = _opening_briefing_html(d)
     snapshot_html = _market_snapshot_html(market_data)
     movers_html   = _movers_html(gainers, losers)
+    impact_html   = _market_impact_html(d.get("market_impact") or [])
 
     sections_html = (
         _section("ASX Focus", d["asx_overview"], d["asx_stories"][:3]) +
@@ -710,6 +846,8 @@ def render_html(d: dict, date_str: str, market_data: list[dict], gainers: list[d
   {snapshot_html}
 
   {movers_html}
+
+  {impact_html}
 
   {sections_html}
 
@@ -1012,6 +1150,7 @@ def main():
     markets_number_path = os.path.join(os.path.dirname(__file__), "markets_number.json")
     with open(markets_number_path, "w") as f:
         _json.dump({
+            "date": now_aest.date().isoformat(),
             "stat": digest.get("the_number_stat", ""),
             "context": digest.get("the_number_context", ""),
         }, f)

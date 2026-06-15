@@ -145,21 +145,23 @@ SIMILARITY_THRESHOLD = 0.75
 # ---------------------------------------------------------------------------
 # Fetch & deduplicate
 # ---------------------------------------------------------------------------
-def fetch_entries(feeds: dict, hours_override: int = 0) -> dict:
+def fetch_entries(feeds: dict, hours_override: int = 0, preview_feed_keys: set[str] | None = None) -> dict:
     aest_now = datetime.now(ZoneInfo("Australia/Sydney"))
     is_monday = aest_now.weekday() == 0
-    is_thursday = aest_now.weekday() == 3
+    is_preview_day = aest_now.weekday() in (3, 4)
+    preview_feed_keys = preview_feed_keys or set()
     if hours_override:
         base_hours = hours_override
     else:
-        base_hours = 120 if is_monday else (48 if is_thursday else 24)
+        base_hours = 120 if is_monday else (48 if is_preview_day else 24)
     cutoff_default = datetime.now(timezone.utc) - timedelta(hours=base_hours)
     cutoff_ai = datetime.now(timezone.utc) - timedelta(hours=max(base_hours, 72))
     results = {k: [] for k in feeds}
 
     for cat, urls in feeds.items():
-        # On Thursdays, swap AFL/NRL to preview-focused feeds
-        if is_thursday and cat in FEEDS_THURSDAY_PREVIEW:
+        # On Thursday/Friday previews, AFL/NRL need fixture-focused feeds.
+        # Friday can be a hybrid: one round game may already be complete, with the rest still ahead.
+        if (is_preview_day or cat in preview_feed_keys) and cat in FEEDS_THURSDAY_PREVIEW:
             urls = FEEDS_THURSDAY_PREVIEW[cat]
         cutoff = cutoff_ai if cat == "ai_sport" else cutoff_default
         for url in urls:
@@ -178,6 +180,7 @@ def fetch_entries(feeds: dict, hours_override: int = 0) -> dict:
                             "title": e.get("title", "").strip(),
                             "url": e.get("link", ""),
                             "source": source,
+                            "summary": _clean_summary(e.get("summary") or e.get("description") or ""),
                         })
             except Exception as ex:
                 print(f"  WARN {url}: {ex}")
@@ -185,6 +188,12 @@ def fetch_entries(feeds: dict, hours_override: int = 0) -> dict:
         print(f"  {cat}: {len(results[cat])} stories")
 
     return results
+
+
+def _clean_summary(raw: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", raw or "")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:500]
 
 
 def _parse_date(entry):
@@ -223,28 +232,46 @@ ESPN_SCOREBOARDS = {
 }
 
 
-def _fetch_nrl_scores() -> tuple[str, list[dict], int]:
+def _fetch_nrl_scores(mode: str = "auto") -> tuple[str, list[dict], int]:
     """Fetch NRL scores. Returns (prompt_text, structured_results, round_number)."""
     aest = ZoneInfo("Australia/Sydney")
     season = datetime.now(aest).year
-    current_round, current_fixtures = 0, []
+    rounds = []
     for rnd in range(1, 30):
         try:
             url = f"https://www.nrl.com/draw/data?competition=111&round={rnd}&season={season}"
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=8) as r:
                 data = json.loads(r.read())
-            fulltime = [f for f in data.get("fixtures", []) if f.get("matchState") == "FullTime"]
-            if not fulltime:
-                break
-            current_round, current_fixtures = rnd, fulltime
+            all_fixtures = data.get("fixtures", [])
+            if all_fixtures:
+                rounds.append((rnd, all_fixtures))
         except Exception:
             break
 
+    active_round, current_round_all = 0, []
+    if mode == "wrap":
+        for rnd, fixtures in reversed(rounds):
+            if any(f.get("matchState") == "FullTime" for f in fixtures):
+                active_round, current_round_all = rnd, fixtures
+                break
+    else:
+        for rnd, fixtures in rounds:
+            if any(f.get("matchState") != "FullTime" for f in fixtures):
+                active_round, current_round_all = rnd, fixtures
+                break
+    if not current_round_all:
+        for rnd, fixtures in reversed(rounds):
+            if any(f.get("matchState") == "FullTime" for f in fixtures):
+                active_round, current_round_all = rnd, fixtures
+                break
+
+    current_fixtures = [f for f in current_round_all if f.get("matchState") == "FullTime"]
+    upcoming = [] if mode == "wrap" else [f for f in current_round_all if f.get("matchState") != "FullTime"]
     results = []
     lines = []
     if current_fixtures:
-        lines.append(f"--- NRL Round {current_round} ---")
+        lines.append(f"--- NRL Round {active_round} Completed ---")
         for f in current_fixtures:
             home = f.get("homeTeam", {})
             away = f.get("awayTeam", {})
@@ -254,34 +281,70 @@ def _fetch_nrl_scores() -> tuple[str, list[dict], int]:
             a_score = away.get("score", "?")
             draw = h_score == a_score
             results.append({"home": h_name, "away": a_name, "home_score": h_score, "away_score": a_score, "draw": draw})
-            lines.append(f"  {h_name} {h_score} def. {a_name} {a_score}" if not draw
-                         else f"  {h_name} {h_score} — {a_name} {a_score} (Draw)")
+            if draw:
+                lines.append(f"  {h_name} {h_score} — {a_name} {a_score} (Draw)")
+            elif int(h_score) > int(a_score):
+                lines.append(f"  {h_name} def. {a_name} {h_score}-{a_score}")
+            else:
+                lines.append(f"  {a_name} def. {h_name} {a_score}-{h_score}")
+    if upcoming:
+        lines.append(f"--- NRL Round {active_round} Upcoming ---")
+        for f in upcoming:
+            home = f.get("homeTeam", {})
+            away = f.get("awayTeam", {})
+            h_name = home.get("nickName", "?")
+            a_name = away.get("nickName", "?")
+            clock = f.get("clock") or {}
+            kickoff = clock.get("kickOffTimeLong") if isinstance(clock, dict) else ""
+            kickoff = kickoff or f.get("matchStart") or f.get("startTime") or f.get("date") or ""
+            venue = f.get("venue") or ""
+            detail = " — ".join(part for part in (kickoff, venue) if part)
+            lines.append(f"  {h_name} v {a_name}" + (f" — {detail}" if detail else ""))
+    if current_fixtures or upcoming:
         lines.append("")
-    return "\n".join(lines), results, current_round
+    return "\n".join(lines), results, active_round, upcoming
 
 
-def _fetch_afl_scores() -> tuple[str, list[dict], int]:
+def _fetch_afl_scores(mode: str = "auto") -> tuple[str, list[dict], int]:
     """Fetch AFL scores. Returns (prompt_text, structured_results, round_number)."""
     aest = ZoneInfo("Australia/Sydney")
     year = datetime.now(aest).year
-    current_round, current_games = 0, []
+    rounds = []
     for rnd in range(1, 30):
         try:
             url = f"https://api.squiggle.com.au/?q=games;year={year};round={rnd}"
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 SportingBrief/1.0"})
             with urllib.request.urlopen(req, timeout=8) as r:
                 data = json.loads(r.read())
-            games = [g for g in data.get("games", []) if g.get("timestr") == "Full Time"]
-            if not games:
-                break
-            current_round, current_games = rnd, games
+            all_games = data.get("games", [])
+            if all_games:
+                rounds.append((rnd, all_games))
         except Exception:
             break
 
+    active_round, current_round_all = 0, []
+    if mode == "wrap":
+        for rnd, games in reversed(rounds):
+            if any(g.get("timestr") == "Full Time" for g in games):
+                active_round, current_round_all = rnd, games
+                break
+    else:
+        for rnd, games in rounds:
+            if any(g.get("timestr") != "Full Time" for g in games):
+                active_round, current_round_all = rnd, games
+                break
+    if not current_round_all:
+        for rnd, games in reversed(rounds):
+            if any(g.get("timestr") == "Full Time" for g in games):
+                active_round, current_round_all = rnd, games
+                break
+
+    current_games = [g for g in current_round_all if g.get("timestr") == "Full Time"]
+    upcoming = [] if mode == "wrap" else [g for g in current_round_all if g.get("timestr") != "Full Time"]
     results = []
     lines = []
     if current_games:
-        lines.append(f"--- AFL Round {current_round} ---")
+        lines.append(f"--- AFL Round {active_round} Completed ---")
         for g in current_games:
             h_name = g.get("hteam", "?")
             a_name = g.get("ateam", "?")
@@ -289,35 +352,51 @@ def _fetch_afl_scores() -> tuple[str, list[dict], int]:
             a_score = g.get("ascore", "?")
             draw = h_score == a_score
             results.append({"home": h_name, "away": a_name, "home_score": h_score, "away_score": a_score, "draw": draw})
-            lines.append(f"  {h_name} {h_score} def. {a_name} {a_score}" if not draw
-                         else f"  {h_name} {h_score} — {a_name} {a_score} (Draw)")
+            if draw:
+                lines.append(f"  {h_name} {h_score} — {a_name} {a_score} (Draw)")
+            elif int(h_score) > int(a_score):
+                lines.append(f"  {h_name} def. {a_name} {h_score}-{a_score}")
+            else:
+                lines.append(f"  {a_name} def. {h_name} {a_score}-{h_score}")
+    if upcoming:
+        lines.append(f"--- AFL Round {active_round} Upcoming ---")
+        for g in upcoming:
+            h_name = g.get("hteam", "?")
+            a_name = g.get("ateam", "?")
+            when = g.get("timestr") or g.get("localtime") or g.get("date") or ""
+            venue = g.get("venue") or ""
+            detail = " — ".join(part for part in (when, venue) if part)
+            lines.append(f"  {h_name} v {a_name}" + (f" — {detail}" if detail else ""))
+    if current_games or upcoming:
         lines.append("")
-    return "\n".join(lines), results, current_round
+    return "\n".join(lines), results, active_round, upcoming
 
 
-def fetch_scores() -> tuple[str, dict]:
+def fetch_scores(mode: str = "auto") -> tuple[str, dict]:
     """Returns (prompt_text, structured) where structured has nrl/afl results."""
     lines = ["=== LIVE SCORES & RESULTS ===\n"]
-    structured = {"nrl": [], "nrl_round": 0, "afl": [], "afl_round": 0}
+    structured = {"nrl": [], "nrl_round": 0, "nrl_upcoming": [], "afl": [], "afl_round": 0, "afl_upcoming": []}
 
     # NRL — nrl.com
     try:
-        nrl_text, nrl_results, nrl_round = _fetch_nrl_scores()
+        nrl_text, nrl_results, nrl_round, nrl_upcoming = _fetch_nrl_scores(mode)
         if nrl_text:
             lines.append(nrl_text)
             structured["nrl"] = nrl_results
             structured["nrl_round"] = nrl_round
+            structured["nrl_upcoming"] = nrl_upcoming
             print("  NRL scores: OK")
     except Exception as ex:
         print(f"  WARN NRL scores: {ex}")
 
     # AFL — Squiggle
     try:
-        afl_text, afl_results, afl_round = _fetch_afl_scores()
+        afl_text, afl_results, afl_round, afl_upcoming = _fetch_afl_scores(mode)
         if afl_text:
             lines.append(afl_text)
             structured["afl"] = afl_results
             structured["afl_round"] = afl_round
+            structured["afl_upcoming"] = afl_upcoming
             print("  AFL scores: OK")
     except Exception as ex:
         print(f"  WARN AFL scores: {ex}")
@@ -352,14 +431,27 @@ def fetch_scores() -> tuple[str, dict]:
     return "\n".join(lines), structured
 
 
+def _dynamic_round_mode(feed_key: str, requested_mode: str, scores_structured: dict) -> str:
+    if feed_key not in ("afl", "nrl") or requested_mode != "preview":
+        return requested_mode
+
+    completed = scores_structured.get(feed_key) or []
+    upcoming = scores_structured.get(f"{feed_key}_upcoming") or []
+    if completed and upcoming:
+        return "round_preview"
+    if upcoming:
+        return "thursday_preview"
+    return "wrap"
+
+
 # ---------------------------------------------------------------------------
 # Claude CLI summarisation — per-sport pipeline
 # ---------------------------------------------------------------------------
 
 # (feed_key, display_label, tag, max_stories, special_notes)
 SPORT_SECTIONS = [
-    ("nrl",      "NRL",                       "NRL",       6, ""),
     ("afl",      "AFL",                        "AFL",       6, ""),
+    ("nrl",      "NRL",                       "NRL",       6, ""),
     ("football", "Football/Soccer",            "FOOTBALL",  8, ""),
     ("cricket",  "Cricket",                    "CRICKET",   5,
      "Australian Men's and Women's national teams only, plus Australians in the IPL. Ignore County Championship and non-Australian domestic cricket."),
@@ -374,9 +466,32 @@ SPORT_SECTIONS = [
 
 def build_sport_prompt(label: str, tag: str, entries: list, scores_text: str, mode: str, special_notes: str = "") -> str:
     is_thursday_preview = mode == "thursday_preview"
-    is_preview = mode in ("preview", "thursday_preview")
+    is_round_preview = mode == "round_preview"
+    is_preview = mode in ("preview", "thursday_preview", "round_preview")
     if tag == "AI_SPORT":
         overview_instr = f"2-3 sentences on a secondary AI, business, or technology story in sport — not the lead story already covered in the opening briefing. Sharp, punchy, active voice. Each sentence on its own line. {special_notes}"
+    elif tag == "F1":
+        overview_instr = (
+            "2-3 sentences on the most recent Formula 1 race. If a race occurred, the first sentence must name the Grand Prix winner and winning team. "
+            "Then add the decisive race detail, retirement, podium, or championship implication from the source data. "
+            "Do not lead with paddock comments, regulation threats, or car-performance quotes when a race result is available. "
+            f"Each sentence on its own line. {special_notes}"
+        )
+    elif tag == "FOOTBALL":
+        overview_instr = (
+            "2-3 sentences on the biggest football story. If a major league season has just ended, lead with the champion, relegated teams, and European qualifiers before individual match colour. "
+            "For preview editions, do not list Premier League final-day results that were already wrap material; focus on current trophies, finals, appointments, transfer/ownership stories, or upcoming fixtures. "
+            "Name the competition and clubs. Do not confuse teams from different competitions or finals. The tournament starting on 11 June 2026 is the FIFA World Cup 26, not the Club World Cup. "
+            "Use Sunderland/Chelsea-style surprise stories only after the title/relegation/Europe picture is clear. Each sentence on its own line."
+        )
+    elif is_round_preview:
+        overview_instr = (
+            f"2-3 sentences previewing the upcoming {label} weekend while acknowledging any completed round game already played. "
+            "First, briefly state the completed result if the source data or live scores include one from the current round. "
+            "Then preview the key remaining fixture or team-selection storyline. "
+            "Do not treat the whole round as complete. Do not ignore State of Origin if it is part of this week's context. "
+            "Specific teams and players only. Each sentence on its own line."
+        )
     elif is_thursday_preview:
         overview_instr = (
             f"2-3 sentences previewing the upcoming {label} weekend — the key fixture, what's at stake, and recent form. "
@@ -393,14 +508,21 @@ def build_sport_prompt(label: str, tag: str, entries: list, scores_text: str, mo
             "Sharp, punchy, active voice. Scores and names required. Each sentence on its own line."
         )
 
-    if is_thursday_preview:
+    if is_round_preview:
+        result_hint = "completed score e.g. 'Bulldogs def. Storm 30-20' OR upcoming fixture e.g. 'Broncos v Storm, Sat 7:30pm AEST'"
+    elif is_thursday_preview:
         result_hint = "upcoming fixture e.g. 'Broncos v Storm, Sat 7:30pm AEST', or omit"
     elif tag in ("F1", "GOLF"):
         result_hint = special_notes
     else:
         result_hint = "score e.g. 'Sharks def. Tigers 52-10', or omit if unknown"
 
-    digest_label = "Thursday weekend preview" if is_thursday_preview else "weekend sports digest"
+    if is_round_preview:
+        digest_label = "round-so-far weekend preview"
+    elif is_thursday_preview:
+        digest_label = "Thursday weekend preview"
+    else:
+        digest_label = "weekend sports digest"
     lines = [
         f"You are writing the {label} section of a {digest_label} for Australian fans.",
         "Produce output in EXACTLY this format — no extra text, no preamble:\n",
@@ -417,16 +539,26 @@ def build_sport_prompt(label: str, tag: str, entries: list, scores_text: str, mo
         f"{tag}_STORY_END\n",
         "RULES:",
         "1. Specific names only — players, coaches, teams. Never 'a player', 'the star', 'a key figure'.",
+        "2. Include scores for completed games and scheduled date/time for upcoming fixtures when known. Clearly label which is which." if is_round_preview else
         "2. Always include the score when reporting a result." if not is_thursday_preview else
             "2. Include scheduled date/time when known. Do not invent scores for upcoming matches.",
+        "3. This is a hybrid round preview: report completed current-round games as results, then preview remaining fixtures. Do not imply the round is complete."
+            if is_round_preview else
         "3. Report upcoming weekend fixtures only — do not report past results or imply milestones have been reached."
             if is_thursday_preview else
             "3. Only report events that have already occurred. Do not report upcoming fixtures as results.\n"
             "   Do not complete or anticipate milestones — if a record or milestone is upcoming, omit it entirely.",
         "4. Only use facts, quotes, scores, venues, and statistics that appear verbatim in the source data.",
         "   If it is not in the source data, omit it. Do not infer, estimate, or fill gaps from general knowledge.",
-        "5. Sharp, punchy prose. Active voice. Short sentences. Every sentence earns its place.",
-        "6. BANNED PHRASES — never use: 'notable', 'significant', 'dominant', 'standout', 'decisive',",
+        "   Never invent or guess a venue. If the venue is not present, omit the venue.",
+        "5. If reporting an injury, name the player. Never write generic descriptors like 'a promising young Blue',",
+        "   'a key player', or 'the star'. If the player is not named in the source data, omit the injury.",
+        "6. For Formula 1, a race result outranks paddock/commentary stories. If a Grand Prix or sprint occurred,",
+        "   lead the section with the winner and race name.",
+        "7. For football, season outcomes outrank single-match colour. If a league season ended, lead with champion,",
+        "   relegated clubs, and European qualification before a surprise result.",
+        "8. Sharp, punchy prose. Active voice. Short sentences. Every sentence earns its place.",
+        "9. BANNED PHRASES — never use: 'notable', 'significant', 'dominant', 'standout', 'decisive',",
         "   'reshaping', 'heading into', 'ladder implications', 'top-four contenders', 'on the verge',",
         "   'further solidifying', 'remains to be seen', 'question marks', 'building momentum',",
         "   'captured attention', 'drew scrutiny', 'attracted interest', 'collectively', 'amid'.",
@@ -437,6 +569,8 @@ def build_sport_prompt(label: str, tag: str, entries: list, scores_text: str, mo
     lines.append(f"\n=== {label.upper()} STORIES ===")
     for item in entries:
         lines.append(f"[{item['source']}] {item['title']}")
+        if item.get("summary"):
+            lines.append(f"  Summary: {item['summary']}")
         if item.get("url"):
             lines.append(f"  {item['url']}")
 
@@ -446,36 +580,100 @@ def build_sport_prompt(label: str, tag: str, entries: list, scores_text: str, mo
     return "\n".join(lines)
 
 
-def build_briefing_prompt(sport_summaries: dict, mode: str, is_thursday: bool = False) -> str:
+def _score_briefing_lines(scores: dict) -> list[str]:
+    lines = []
+    for key, label in (("afl", "AFL"), ("nrl", "NRL")):
+        results = scores.get(key, [])
+        round_num = scores.get(f"{key}_round", 0)
+        if not results:
+            continue
+        lines.append(f"{label} Round {round_num} results:")
+        for r in results:
+            home_score = int(r["home_score"])
+            away_score = int(r["away_score"])
+            if r.get("draw"):
+                lines.append(f"- {r['home']} {home_score} drew {r['away']} {away_score}")
+            elif home_score > away_score:
+                margin = home_score - away_score
+                lines.append(f"- {r['home']} def. {r['away']} {home_score}-{away_score} by {margin}")
+            else:
+                margin = away_score - home_score
+                lines.append(f"- {r['away']} def. {r['home']} {away_score}-{home_score} by {margin}")
+    return lines
+
+
+def _result_sentence(r: dict) -> tuple[int, str]:
+    home_score = int(r["home_score"])
+    away_score = int(r["away_score"])
+    if r.get("draw"):
+        return 0, f"{r['home']} drew {r['away']} {home_score}-{away_score}"
+    if home_score > away_score:
+        margin = home_score - away_score
+        return margin, f"{r['home']} beat {r['away']} {home_score}-{away_score} by {margin}"
+    margin = away_score - home_score
+    return margin, f"{r['away']} beat {r['home']} {away_score}-{home_score} by {margin}"
+
+
+def _round_overview_from_scores(scores: dict, key: str, label: str) -> str:
+    results = scores.get(key, [])
+    round_num = scores.get(f"{key}_round", 0)
+    if not results:
+        return ""
+
+    sentences = [_result_sentence(r) for r in results]
+    by_margin = sorted(sentences, key=lambda x: x[0], reverse=True)
+    close_games = [text for margin, text in sentences if 0 < margin <= 6]
+    other_results = [text for _, text in sentences if text not in close_games and text != by_margin[0][1]]
+
+    lines = [
+        f"{label} Round {round_num} is complete.",
+        f"Biggest margin: {by_margin[0][1]}."
+    ]
+    if close_games:
+        lines.append("Close games: " + "; ".join(close_games) + ".")
+    if other_results:
+        lines.append("Also: " + "; ".join(other_results[:4]) + ".")
+    return "\n".join(lines)
+
+
+def build_briefing_prompt(sport_summaries: dict, mode: str, is_thursday: bool = False, scores: dict | None = None) -> str:
     is_preview = mode == "preview"
     banned = (
         "BANNED PHRASES — do not use any of these: 'notable', 'significant', 'dominant', 'standout', "
         "'decisive', 'reshaping', 'heading into', 'ladder implications', 'top-four contenders', 'on the verge', "
         "'further solidifying', 'remains to be seen', 'question marks', 'building momentum', "
         "'captured attention', 'drew scrutiny', 'attracted interest', 'collectively', 'amid', "
-        "'off the field', 'on the field', 'in the mix', 'keeps their run alive', 'carry significant'."
+        "'off the field', 'on the field', 'in the mix', 'keeps their run alive', 'carry significant', "
+        "'put on a show', 'dismantling', 'brutal result', 'came down to millimetres', 'told another story', "
+        "'the number that defined it', 'tightest result of the round', 'round full of narrow margins', "
+        "'genuinely close', 'genuinely brutal', 'the outlier', 'real pressure landed elsewhere', "
+        "'left empty-handed again', 'without a single round off'."
     )
-    if is_thursday:
+    if is_preview:
         instr = (
-            "Write a WEEKEND PREVIEW in 3-4 paragraphs. Sharp, punchy, active voice. Short sentences. Every sentence earns its place — no padding.\n"
-            "Open with AFL (first) and NRL: preview the key upcoming weekend fixtures. State who is playing, recent form, and what is at stake.\n"
-            "Then cover other sports briefly: summarise what has happened since the last edition — results, scores, key storylines.\n"
-            "End with the single AFL or NRL fixture most worth watching this weekend — name the teams and why.\n"
-            f"{banned}"
-        )
-    elif is_preview:
-        instr = (
-            "Write a WEEK PREVIEW in 3-4 paragraphs. Sharp, punchy, active voice. Short sentences. Every sentence earns its place — no padding.\n"
-            "Cover the 4-6 most important upcoming fixtures. Group related sport into the same paragraph.\n"
-            "State who is playing, recent form with scores, and what is at stake. No vague build-up.\n"
-            "End with the single fixture most worth watching this weekend — name the teams and why.\n"
+            "Write a WEEKEND PREVIEW in 5-7 short paragraphs. Sharp, punchy, active voice. Short sentences. Every sentence earns its place — no padding.\n"
+            "Open with AFL (first) and NRL. Use the schedule state in the summaries: some sports may be pure upcoming fixtures, some may be round-so-far plus weekend ahead, and NRL may include State of Origin context.\n"
+            "For AFL and NRL, acknowledge completed current-round games or Origin only when present, then preview the key remaining weekend fixtures. State who is playing, recent form, and what is at stake.\n"
+            "For football, do not list old Premier League results that were likely covered in the Monday wrap. In a preview edition, only include football if there is a current trophy, final, appointment, or upcoming fixture that matters now.\n"
+            "For FIFA stories, be precise: 11 June 2026 is the FIFA World Cup 26 kickoff, not the Club World Cup kickoff.\n"
+            "After football, split other sports by sport rather than merging them into one 'Elsewhere' paragraph. Use separate short paragraphs for Golf, NBA, and MLB/NHL when each has a worthwhile item.\n"
+            "Do not add filler transition phrases such as 'with the rest of the round unfolding', 'with a full slate of fixtures', 'headlining a full slate', 'the weekend continues', or 'the stage is set'. Name the fixture and why it matters, then stop.\n"
+            "Do not call anything the 'game of the weekend', 'pick of the round', 'pick of the weekend', 'marquee fixture', or similar. Mention fixtures once in context only.\n"
+            "Do not add performative stakes sentences such as 'both clubs know what is at stake', 'this one has genuine edge', 'as good as the NRL gets', or 'it should be a cracker'.\n"
+            "Do not add a closing 'game of the weekend' paragraph. If a fixture is worth flagging, mention it once in the relevant AFL or NRL paragraph and move on.\n"
             f"{banned}"
         )
     else:
         instr = (
-            "Write a WEEKEND WRAP in 3-4 paragraphs. Sharp, punchy, active voice. Short sentences. Every sentence earns its place — no padding.\n"
-            "Cover the 4-6 most important results and stories. Names and scores throughout.\n"
-            "State who won, by how much, what it changes. Make every fact count.\n"
+            "Write a WEEKEND WRAP in 4-6 short paragraphs. Sharp, punchy, active voice. Short sentences. Every sentence earns its place — no padding.\n"
+            "Write like a sports desk editor filing a premium briefing: specific, economical, unsentimental. No classroom compare-and-contrast framing.\n"
+            "The opening briefing is a rundown of key stories, not a scoreboard. Results are not stories by default; they become stories only when tied to title race, ladder position, selection, injuries, coaching, scandal, contracts, money, records, or a named player/coach performance.\n"
+            "Lead with AFL, not NRL. The first paragraph should select the 1-2 most important AFL stories from the AFL story blocks and explain why they matter. Do not re-list round results. Use no more than one score or margin, and only if it is essential to the story.\n"
+            "The second paragraph should select the 1-2 most important NRL stories from the NRL story blocks and explain why they matter. Do not summarise the round by margin counts or list close games. Use no more than one score or margin, and only if it is essential to the story.\n"
+            "Then cover the next 2-4 most important results and stories across other sports. Prefer story consequence over score recitation.\n"
+            "The AFL and NRL result tables below carry the full scoreboard. Do not repeat the table in prose.\n"
+            "Write like a brief, not a match report: no theatrical framing, no school-essay transitions, no 'making it a round where...' sentences, no vague ladder claims, no sweeping claims unless sourced.\n"
+            "State only what changed or what matters. Make every fact count.\n"
             "Do not add a closing forward-looking sentence — end on the last result.\n"
             f"{banned}"
         )
@@ -484,22 +682,29 @@ def build_briefing_prompt(sport_summaries: dict, mode: str, is_thursday: bool = 
         "You are writing the opening briefing for a weekend sports digest.",
         instr,
         "Australian audience — lead with AFL and NRL, then other sports. Do not open with F1 or international sports.\n",
-        "No bullet points, no bold headings, no sport labels. Flowing prose only.\n",
+        "No bullet points, no bold headings, no sport labels. Flowing prose only. Use blank lines between sport/topic paragraphs.\n",
+        "Avoid repeating the section summaries or score tables verbatim. Use the opening as a tight synthesis; the sport sections below will carry the detail.\n",
         "STRICT ACCURACY RULES — these override everything else:",
-        "1. Only use facts, scores, names, venues, and quotes that appear in the sport summaries below.",
+        "1. Only use facts, scores, names, venues, and quotes that appear in LIVE ROUND RESULTS or the sport summaries below.",
         "   Do not draw on general knowledge, training data, or fill gaps by inference.",
-        "2. Only report events that have already happened. Do not report upcoming fixtures, milestones, or records as completed.",
+        "   Never invent or guess a venue. If the summaries do not include a venue, omit it.",
+        "2. In preview mode, clearly separate completed games from upcoming fixtures. Do not report upcoming fixtures, milestones, or records as completed."
+            if is_preview else
+            "2. Only report events that have already happened. Do not report upcoming fixtures, milestones, or records as completed.",
         "3. Do not mix sports. NRL teams (Warriors, Broncos, Storm, etc.) must never appear in AFL paragraphs, and vice versa.",
         "4. Do not invent or paraphrase quotes. Only include a quote if it appears verbatim in the source summaries.\n",
         "BRIEFING_START",
-        "[3-4 paragraphs separated by blank lines]",
+        "[4-6 paragraphs separated by blank lines]",
         "BRIEFING_END\n",
         "THE_NUMBER_START",
         "STAT: <one standout sports stat from this edition — score, streak, record, margin. Max 6 words. E.g. '44-16', '8 straight wins', '54-point margin'>",
         "CONTEXT: <one sentence explaining what this stat is and why it matters>",
         "THE_NUMBER_END\n",
-        "=== SPORT SUMMARIES ===",
     ]
+    score_lines = _score_briefing_lines(scores or {})
+    if score_lines:
+        lines.extend(["=== LIVE ROUND RESULTS ===", *score_lines])
+    lines.append("=== SPORT SUMMARIES ===")
     for sport_label, overview in sport_summaries.items():
         if overview and overview.strip().upper() not in ("NO_CONTENT", ""):
             lines.append(f"{sport_label}: {overview}")
@@ -532,12 +737,12 @@ def call_claude(prompt: str, retries: int = 2, timeout: int = 240) -> str:
 # Parse Claude response
 # ---------------------------------------------------------------------------
 def _extract(text: str, tag: str) -> str:
-    m = re.search(rf"{tag}_START\n(.*?)\n{tag}_END", text, re.DOTALL)
+    m = re.search(rf"{tag}_START\s*(.*?)\s*{tag}_END", text, re.DOTALL)
     return m.group(1).strip() if m else ""
 
 
 def _extract_blocks(text: str, tag: str) -> list[dict]:
-    blocks = re.findall(rf"{tag}_START\n(.*?)\n{tag}_END", text, re.DOTALL)
+    blocks = re.findall(rf"{tag}_START\s*(.*?)\s*{tag}_END", text, re.DOTALL)
     items = []
     for block in blocks:
         item = {}
@@ -550,15 +755,125 @@ def _extract_blocks(text: str, tag: str) -> list[dict]:
     return items
 
 
+def _extract_briefing(text: str) -> str:
+    tagged = _extract(text, "BRIEFING")
+    if tagged:
+        return tagged
+    fallback = re.split(r"\n\s*-{3,}\s*\n|THE_NUMBER_START|^STAT:", text.strip(), maxsplit=1, flags=re.MULTILINE)[0]
+    fallback = re.sub(r"^\s*BRIEFING_START\s*", "", fallback)
+    fallback = re.sub(r"\s*BRIEFING_END\s*$", "", fallback)
+    return fallback.strip()
+
+
+def _extract_the_number(text: str) -> tuple[str, str]:
+    stat = ""
+    context = ""
+    the_number_block = re.findall(r"THE_NUMBER_START\s*(.*?)\s*THE_NUMBER_END", text, re.DOTALL)
+    source = the_number_block[0] if the_number_block else text
+    for line in source.splitlines():
+        line = line.strip()
+        if line.startswith("STAT:"):
+            stat = line[5:].strip()
+        elif line.startswith("CONTEXT:"):
+            context = line[8:].strip()
+    return stat, context
+
+
+def _clean_preview_filler(text: str) -> str:
+    replacements = [
+        r",?\s+with the rest of the round unfolding across Saturday and Sunday",
+        r",?\s+with a full slate of fixtures to follow across the weekend",
+        r",?\s+headlining a full slate of remaining Round \d+ fixtures across the weekend",
+        r",?\s+with the round continuing across the weekend",
+        r"\s+with the remaining round still to play",
+        r",?\s+with both clubs knowing[^.]*",
+        r",?\s+with both clubs needing the points",
+        r"\s+Both clubs know exactly what is at stake\.",
+        r"\s+Both clubs know what is at stake\.",
+        r"\s+The Storm don't offer many easy nights at home\.",
+        r",?\s+Tedesco fronting up against a Storm side that will want to send a message on their own patch",
+        r"\s+The Cats have been[^.]*\. The Blues need[^.]*\.",
+        r",?\s+as the weekend continues",
+        r"\s+This one has genuine edge\.",
+        r"\s+as good as the NRL gets\.",
+        r"\s+It should be a cracker\.",
+        r"\s+in the pick of Round \d+",
+        r"\s+in the pick of the round",
+        r"\s+as the pick of Round \d+",
+        r"\s+as the pick of the round",
+        r"\s*Saturday night's main event is Melbourne Storm hosting the Sydney Roosters at AAMI Park, with Tedesco running straight back into the team that gave him his platform\.",
+        r"\.?\s*[A-Z][^.]{0,80}\b(?:v|versus|against)\b[^.]{0,100}game of the round\.",
+        r"\.?\s*[A-Z][^.]{0,80}\b(?:v|versus|against)\b[^.]{0,120}game of the weekend\.",
+        r"\.?\s*(?:The\s+)?pick of (?:the\s+)?(?:Round \d+|round|weekend|NRL weekend)[^.]*\.",
+        r"\.?\s*[A-Z][^.]{0,80}\b(?:v|versus|against)\b[^.]{0,120}marquee fixture[^.]*\.",
+    ]
+    cleaned = text or ""
+    for pattern in replacements:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(
+        r"(?:Now\s+)?Carlton host Geelong at the MCG on Friday night[^.]*\.",
+        "Carlton host Geelong at the MCG on Friday night.",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"\bMelbourne host (?:Sydney|the Roosters) at AAMI Park\b",
+        "Storm host the Roosters at AAMI Park",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"James Tedesco was the difference-maker for NSW, and he lines up for Melbourne against the Roosters at AAMI Park on Saturday night\.",
+        "James Tedesco was the difference-maker for NSW, and returns for the Roosters against the Storm at AAMI Park on Saturday night.",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"\s*(?:It's|It is) the fixture of the round\.",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    return cleaned
+
+
+def _clean_football_competition(text: str) -> str:
+    cleaned = text or ""
+    cleaned = re.sub(
+        r"\bClub World Cup\b(?=[^.]{0,80}\b(?:11 June|June 11|11 Jun|Jun 11)\b)",
+        "FIFA World Cup 26",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"\b(?:the\s+)?Club World Cup kicks off on 11 June\b",
+        "the FIFA World Cup 26 kicks off on 11 June",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    return cleaned
+
+
+def _clean_football_blocks(items: list[dict]) -> list[dict]:
+    cleaned_items = []
+    for item in items:
+        cleaned_items.append({
+            key: _clean_football_competition(value) if isinstance(value, str) else value
+            for key, value in item.items()
+        })
+    return cleaned_items
+
+
 def parse_response(raw: str) -> dict:
+    stat, context = _extract_the_number(raw)
     result = {
-        "briefing":            _extract(raw, "BRIEFING"),
-        "nrl_overview":        _extract(raw, "NRL_OVERVIEW"),
+        "briefing":            _clean_football_competition(_clean_preview_filler(_extract_briefing(raw))),
+        "nrl_overview":        _clean_preview_filler(_extract(raw, "NRL_OVERVIEW")),
         "nrl_stories":         _extract_blocks(raw, "NRL_STORY"),
-        "afl_overview":        _extract(raw, "AFL_OVERVIEW"),
+        "afl_overview":        _clean_preview_filler(_extract(raw, "AFL_OVERVIEW")),
         "afl_stories":         _extract_blocks(raw, "AFL_STORY"),
-        "football_overview":   _extract(raw, "FOOTBALL_OVERVIEW"),
-        "football_stories":    _extract_blocks(raw, "FOOTBALL_STORY"),
+        "football_overview":   _clean_football_competition(_extract(raw, "FOOTBALL_OVERVIEW")),
+        "football_stories":    _clean_football_blocks(_extract_blocks(raw, "FOOTBALL_STORY")),
         "cricket_overview":    _extract(raw, "CRICKET_OVERVIEW"),
         "cricket_stories":     _extract_blocks(raw, "CRICKET_STORY"),
         "f1_overview":         _extract(raw, "F1_OVERVIEW"),
@@ -571,18 +886,9 @@ def parse_response(raw: str) -> dict:
         "golf_stories":        _extract_blocks(raw, "GOLF_STORY"),
         "ai_sport_overview":   _extract(raw, "AI_SPORT_OVERVIEW"),
         "ai_sport_stories":    _extract_blocks(raw, "AI_SPORT_STORY"),
-        "the_number_stat":     "",
-        "the_number_context":  "",
+        "the_number_stat":     stat,
+        "the_number_context":  context,
     }
-
-    # Parse THE_NUMBER from briefing response
-    the_number_block = re.findall(r"THE_NUMBER_START\n(.*?)\nTHE_NUMBER_END", raw, re.DOTALL)
-    if the_number_block:
-        for line in the_number_block[0].splitlines():
-            if line.startswith("STAT:"):
-                result["the_number_stat"] = line[5:].strip()
-            elif line.startswith("CONTEXT:"):
-                result["the_number_context"] = line[8:].strip()
     return result
 
 
@@ -610,7 +916,7 @@ def _story_card(item: dict) -> str:
 </table>"""
 
 
-def _results_table(results: list[dict], round_num: int, label: str) -> str:
+def _results_table(results: list[dict], round_num: int, label: str, heading: str = "Results") -> str:
     if not results:
         return ""
     rows = ""
@@ -628,7 +934,7 @@ def _results_table(results: list[dict], round_num: int, label: str) -> str:
       <td style="padding:7px 8px;font-size:13px;font-family:Arial,sans-serif;{a_style}">{_e(r['away'])}</td>
     </tr>"""
     return f"""
-<p style="margin:0 0 8px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;">{_e(label)} — Round {round_num} Results</p>
+<p style="margin:0 0 8px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.08em;font-family:Arial,sans-serif;">{_e(label)} — Round {round_num} {_e(heading)}</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;border-collapse:collapse;">
   <tbody>{rows}
   </tbody>
@@ -664,12 +970,13 @@ def render_html(d: dict, date_str: str, edition_label: str = "Weekend Wrap", sco
     briefing_html = _render_briefing(d["briefing"])
     scores = scores or {}
 
-    nrl_table = _results_table(scores.get("nrl", []), scores.get("nrl_round", 0), "NRL") if scores.get("nrl") else ""
-    afl_table = _results_table(scores.get("afl", []), scores.get("afl_round", 0), "AFL") if scores.get("afl") else ""
+    result_heading = "So Far" if "Preview" in edition_label else "Results"
+    nrl_table = _results_table(scores.get("nrl", []), scores.get("nrl_round", 0), "NRL", result_heading) if scores.get("nrl") else ""
+    afl_table = _results_table(scores.get("afl", []), scores.get("afl_round", 0), "AFL", result_heading) if scores.get("afl") else ""
 
     sections = (
-        _section("NRL", d["nrl_overview"], d["nrl_stories"][:3], results_html=nrl_table) +
         _section("AFL", d["afl_overview"], d["afl_stories"][:3], results_html=afl_table) +
+        _section("NRL", d["nrl_overview"], d["nrl_stories"][:3], results_html=nrl_table) +
         _section("Football", d["football_overview"], d["football_stories"][:3]) +
         _section("Cricket", d["cricket_overview"], d["cricket_stories"][:2]) +
         (_section("Formula 1", d["f1_overview"], d["f1_stories"][:2])
@@ -960,18 +1267,21 @@ def run_ingest(mode: str, backfill: bool = False) -> None:
     sb = get_supabase()
 
     hours = 336 if backfill else 0  # 14 days if backfill, else auto by weekday
+    scores_text, scores_structured = fetch_scores(mode)
+    preview_feed_keys = {
+        feed_key for feed_key in ("afl", "nrl")
+        if _dynamic_round_mode(feed_key, mode, scores_structured) in ("round_preview", "thursday_preview")
+    }
     if backfill:
         print("Fetching RSS feeds (14-day backfill)…")
     else:
         print("Fetching RSS feeds…")
-    entries = fetch_entries(FEEDS, hours_override=hours)
+    entries = fetch_entries(FEEDS, hours_override=hours, preview_feed_keys=preview_feed_keys)
     total = sum(len(v) for v in entries.values())
     print(f"  {total} stories total after deduplication")
     if total == 0:
         print("No stories found. Exiting.")
         return
-
-    scores_text, _ = fetch_scores()
 
     # Check if F1 had a race in the last 3 days via ESPN schedule
     f1_race_recent = _f1_race_in_last_3_days()
@@ -997,9 +1307,10 @@ def run_ingest(mode: str, backfill: bool = False) -> None:
                 print(f"  WARN [Formula 1] DB write failed: {ex}")
             continue
 
-        # On Thursday: AFL and NRL get a weekend fixture preview; all other sports get a wrap
-        if is_thursday and feed_key in ("afl", "nrl"):
-            sport_mode = "thursday_preview"
+        # AFL/NRL preview mode is schedule-driven:
+        # upcoming only = fixture preview; completed + upcoming = round-so-far preview; completed only = wrap.
+        if feed_key in ("afl", "nrl"):
+            sport_mode = _dynamic_round_mode(feed_key, mode, scores_structured)
         elif is_thursday:
             sport_mode = "wrap"
         else:
@@ -1058,22 +1369,32 @@ def compile_digest(mode: str, days_back: int = 14, is_thursday: bool = False) ->
         "us_sport_overview": "", "us_sport_stories": [],
         "golf_overview": "", "golf_stories": [],
         "ai_sport_overview": "", "ai_sport_stories": [],
+        "the_number_stat": "",
+        "the_number_context": "",
     }
+    _, scores_structured = fetch_scores(mode)
     sport_summaries: dict[str, str] = {}
     for feed_key, label, tag, _, _ in SPORT_SECTIONS:
         if feed_key in sport_rows:
             row = sport_rows[feed_key]
-            digest[f"{feed_key}_overview"] = row.get("overview") or ""
+            overview = row.get("overview") or ""
+            if feed_key in {"nrl", "afl"} and mode == "preview":
+                overview = _clean_preview_filler(overview)
+            if feed_key in {"nrl", "afl"} and mode == "wrap":
+                overview = _round_overview_from_scores(scores_structured, feed_key, label) or overview
+            digest[f"{feed_key}_overview"] = overview
             digest[f"{feed_key}_stories"] = row.get("stories") or []
-            sport_summaries[label] = row.get("overview") or ""
+            sport_summaries[label] = overview
 
     print("  [Briefing] calling Claude…")
-    briefing_prompt = build_briefing_prompt(sport_summaries, mode, is_thursday=is_thursday)
+    briefing_prompt = build_briefing_prompt(sport_summaries, mode, is_thursday=is_thursday, scores=scores_structured)
     raw = call_claude(briefing_prompt)
-    digest["briefing"] = _extract(raw, "BRIEFING")
+    briefing_parsed = parse_response(raw)
+    digest["briefing"] = briefing_parsed.get("briefing", "")
+    digest["the_number_stat"] = briefing_parsed.get("the_number_stat", "")
+    digest["the_number_context"] = briefing_parsed.get("the_number_context", "")
     print(f"  [Briefing] done — {len(digest['briefing'])} chars")
 
-    _, scores_structured = fetch_scores()
     return digest, scores_structured
 
 
