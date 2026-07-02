@@ -1163,6 +1163,9 @@ def main():
         f.write(subject)
 
     if args.preview:
+        preview_text = digest.get("briefing", "")[:120]
+        save_edition("draft", subject, preview_text, html_body)
+
         print(f"Preview saved → {preview_path}")
         webbrowser.open(f"file://{preview_path}")
         # Generate social card and pop it open

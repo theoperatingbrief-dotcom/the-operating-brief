@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { spawn } from "child_process";
 import path from "path";
+import { getAdminSecret } from "../auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ const SCRIPTS: Record<string, { file: string; flag: string }> = {
 
 export async function GET(request: NextRequest) {
   // Auth check
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminPassword = getAdminSecret();
   const authCookie = request.cookies.get("admin_auth")?.value;
   if (!adminPassword || authCookie !== adminPassword) {
     return new Response("Unauthorized", { status: 401 });

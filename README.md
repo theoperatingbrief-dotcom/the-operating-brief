@@ -56,6 +56,7 @@ Important routes:
 - `/unsubscribe`, `/markets/unsubscribe`, `/sporting/unsubscribe` - unsubscribe flows.
 - `/admin` - password-protected local admin dashboard.
 - `/preview/[token]` - token-protected Operating Brief draft approval/send surface.
+- `/markets/preview/[token]` - token-protected Markets draft preview surface.
 
 Important API routes:
 
@@ -110,7 +111,7 @@ The Next.js app expects:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `RESEND_API_KEY`
-- `ADMIN_PASSWORD`
+- `ADMIN_PASSWORD` or `PREVIEW_TOKEN` as the fallback admin secret when `ADMIN_PASSWORD` is not configured
 - `PREVIEW_TOKEN`
 - `GITHUB_PAT` for triggering the GitHub Action from the preview page
 
@@ -140,13 +141,11 @@ cd website
 npm run dev
 ```
 
-Run the preview file server from the repo root when using the admin "Open preview" buttons:
+Run the preview file server from the repo root when using the admin "Open preview" buttons for Markets, Sporting, and Paddock. The Operating Brief preview now opens on the website at `/preview/[token]`:
 
 ```bash
 python3 serve.py
 ```
-
-The admin assumes preview HTML is available from `http://localhost:8765`.
 
 ## Common Workflows
 
@@ -162,7 +161,7 @@ python3 sports_digest.py --preview
 python3 paddock_digest.py --preview
 ```
 
-Preview mode writes `preview_latest.html`, `preview_markets.html`, `preview_sports.html`, or `preview_paddock.html`. The main Operating Brief preview also saves a Supabase draft row with slug `draft` for web approval.
+Preview mode writes `preview_latest.html`, `preview_markets.html`, `preview_sports.html`, or `preview_paddock.html`. The Operating Brief and Markets previews also save a Supabase draft row with slug `draft` for web approval and hosted preview routes.
 
 ### Send an approved preview
 

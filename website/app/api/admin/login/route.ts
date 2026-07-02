@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAdminSecret } from "../auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   const { password } = await request.json();
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminPassword = getAdminSecret();
 
   if (!adminPassword || password !== adminPassword) {
     return NextResponse.json({ error: "Invalid password" }, { status: 401 });

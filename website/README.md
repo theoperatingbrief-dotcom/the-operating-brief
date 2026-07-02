@@ -15,6 +15,7 @@ For overall product intent and backend generator context, read the root `README.
 - `/unsubscribe`, `/markets/unsubscribe`, `/sporting/unsubscribe` - unsubscribe pages.
 - `/admin` - password-protected dashboard for subscriber counts and generator jobs.
 - `/preview/[token]` - token-protected Operating Brief draft controls.
+- `/markets/preview/[token]` - token-protected Markets Brief draft preview.
 
 ## API Routes
 
@@ -29,6 +30,7 @@ For overall product intent and backend generator context, read the root `README.
 - `/api/admin/run` - streams Python generator output for preview/send jobs.
 - `/api/preview/[token]/generate` - dispatches the GitHub Action that generates an Operating Brief draft.
 - `/api/preview/[token]/send` - sends the Supabase `draft` Operating Brief to active subscribers.
+- `/api/markets/preview/[token]/html` - returns the latest Markets draft HTML from Supabase.
 
 ## Local Development
 
@@ -46,14 +48,13 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-When using `/admin`, also run the root preview file server if you want "Open preview" to work:
+When using `/admin`, the Operating Brief and Markets previews open on the website at `/preview/[token]` and `/markets/preview/[token]`.
+The Sporting and Paddock preview buttons still use the root preview file server in local development:
 
 ```bash
 cd ..
 python3 serve.py
 ```
-
-The admin opens preview HTML from `http://localhost:8765`.
 
 ## Environment
 
@@ -62,7 +63,7 @@ The website expects:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `RESEND_API_KEY`
-- `ADMIN_PASSWORD`
+- `ADMIN_PASSWORD` or `PREVIEW_TOKEN` as the fallback admin secret when `ADMIN_PASSWORD` is not configured
 - `PREVIEW_TOKEN`
 - `GITHUB_PAT` if `/preview/[token]/generate` should trigger GitHub Actions
 
