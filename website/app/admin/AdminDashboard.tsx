@@ -47,6 +47,7 @@ type Stats = Record<DigestKey, number>;
 
 type AdminDashboardProps = {
   previewToken: string;
+  isVercel: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -75,12 +76,12 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   }
 
   return (
-    <div style={{ backgroundColor: "#f5f4f0", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
-      <div style={{ backgroundColor: "#ffffff", padding: "48px", width: "100%", maxWidth: "400px" }}>
-        <p style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#888", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "8px" }}>
+    <div className="admin-page admin-page--login">
+      <div className="admin-login">
+        <p className="admin-kicker">
           Admin
         </p>
-        <h1 style={{ fontFamily: "Georgia, serif", fontSize: "28px", fontWeight: 700, color: "#111", marginBottom: "32px", borderBottom: "3px solid #111", paddingBottom: "16px" }}>
+        <h1 className="admin-login__title">
           The Operating Brief
         </h1>
         <form onSubmit={handleSubmit}>
@@ -90,15 +91,15 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoFocus
-            style={{ width: "100%", border: "1px solid #111", padding: "12px", fontFamily: "Arial, sans-serif", fontSize: "14px", marginBottom: "12px", outline: "none", boxSizing: "border-box" }}
+            className="admin-input"
           />
           {error && (
-            <p style={{ fontFamily: "Arial, sans-serif", fontSize: "13px", color: "#cc0000", marginBottom: "12px" }}>{error}</p>
+            <p className="admin-error">{error}</p>
           )}
           <button
             type="submit"
             disabled={loading}
-            style={{ backgroundColor: loading ? "#555" : "#111", color: "#fff", border: "none", padding: "12px 24px", fontFamily: "Arial, sans-serif", fontSize: "13px", letterSpacing: "0.08em", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer" }}
+            className="admin-button admin-button--primary"
           >
             {loading ? "Checking…" : "Sign in"}
           </button>
@@ -111,7 +112,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 // ---------------------------------------------------------------------------
 // Main dashboard
 // ---------------------------------------------------------------------------
-export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
+export default function AdminDashboard({ previewToken, isVercel }: AdminDashboardProps) {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [activeJob, setActiveJob] = useState<string | null>(null);
@@ -121,6 +122,9 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
   });
   const logsEndRef = useRef<HTMLDivElement>(null);
   const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
+  const previewPollRef = useRef<number | null>(null);
+  const previewPollStartedAtRef = useRef<number | null>(null);
+  const previewPollLastStateRef = useRef<string | null>(null);
 
   // Check if already authenticated by hitting the subscribers endpoint
   useEffect(() => {
@@ -137,17 +141,112 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
+  useEffect(() => {
+    return () => {
+      if (previewPollRef.current) {
+        window.clearTimeout(previewPollRef.current);
+        previewPollRef.current = null;
+      }
+    };
+  }, []);
+
+  function appendLog(type: string, text: string) {
+    setLogs((l) => [...l, { type, text }]);
+  }
+
+  function schedulePreviewPoll() {
+    if (!isVercel || previewPollStartedAtRef.current === null) return;
+
+    if (previewPollRef.current) {
+      window.clearTimeout(previewPollRef.current);
+    }
+
+    previewPollRef.current = window.setTimeout(async () => {
+      try {
+        const since = new Date(previewPollStartedAtRef.current ?? Date.now()).toISOString();
+        const res = await fetch(`/api/admin/workflow-status?action=brief-preview&since=${encodeURIComponent(since)}`);
+        if (!res.ok) {
+          appendLog("err", `Status check failed: HTTP ${res.status}`);
+          setActiveJob(null);
+          return;
+        }
+
+        const data = await res.json() as {
+          state: "pending" | "queued" | "in_progress" | "completed" | "failed";
+          message: string;
+          run: null | {
+            id: number;
+            status: string;
+            conclusion: string | null;
+            updated_at: string;
+            html_url: string;
+            display_title: string;
+          };
+        };
+
+        if (data.state !== previewPollLastStateRef.current) {
+          previewPollLastStateRef.current = data.state;
+          appendLog(data.state === "failed" ? "err" : data.state === "completed" ? "done" : "info", data.message);
+        }
+
+        if (data.state === "completed") {
+          setPreviewReady((p) => ({ ...p, brief: true }));
+          setActiveJob(null);
+          previewPollStartedAtRef.current = null;
+          previewPollLastStateRef.current = null;
+          if (previewPollRef.current) {
+            window.clearTimeout(previewPollRef.current);
+            previewPollRef.current = null;
+          }
+          return;
+        }
+
+        if (data.state === "failed") {
+          setPreviewReady((p) => ({ ...p, brief: false }));
+          setActiveJob(null);
+          previewPollStartedAtRef.current = null;
+          previewPollLastStateRef.current = null;
+          if (previewPollRef.current) {
+            window.clearTimeout(previewPollRef.current);
+            previewPollRef.current = null;
+          }
+          return;
+        }
+
+        schedulePreviewPoll();
+      } catch (err) {
+        appendLog("err", `Status check failed: ${String(err)}`);
+        setActiveJob(null);
+        previewPollStartedAtRef.current = null;
+        previewPollLastStateRef.current = null;
+        if (previewPollRef.current) {
+          window.clearTimeout(previewPollRef.current);
+          previewPollRef.current = null;
+        }
+      }
+    }, 8000);
+  }
+
   async function runAction(digestKey: DigestKey, action: "ingest" | "preview" | "send") {
     const jobKey = `${digestKey}-${action}`;
     if (activeJob) return; // already running
 
     setActiveJob(jobKey);
     setLogs([{ type: "info", text: `Starting ${jobKey}…` }]);
+    previewPollStartedAtRef.current = null;
+    previewPollLastStateRef.current = null;
+    if (previewPollRef.current) {
+      window.clearTimeout(previewPollRef.current);
+      previewPollRef.current = null;
+    }
+    if (action === "preview") {
+      setPreviewReady((p) => ({ ...p, [digestKey]: false }));
+    }
 
     try {
       const res = await fetch(`/api/admin/run?action=${jobKey}`);
       if (!res.ok || !res.body) {
-        setLogs((l) => [...l, { type: "err", text: `HTTP ${res.status}: failed to start` }]);
+        appendLog("err", `HTTP ${res.status}: failed to start`);
         setActiveJob(null);
         return;
       }
@@ -167,9 +266,17 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
         for (const line of lines) {
           if (!line.startsWith("data:")) continue;
           try {
-            const event = JSON.parse(line.slice(5).trim()) as { type: string; text: string };
-            setLogs((l) => [...l, event]);
+            const event = JSON.parse(line.slice(5).trim()) as { type: string; text: string; startedAt?: string };
+            appendLog(event.type, event.text);
             if (event.type === "done") {
+              if (action === "preview" && digestKey === "brief" && isVercel) {
+                previewPollStartedAtRef.current = event.startedAt ? new Date(event.startedAt).getTime() : null;
+                previewPollLastStateRef.current = "pending";
+                appendLog("info", "Watching GitHub Actions for completion…");
+                schedulePreviewPoll();
+                return;
+              }
+
               if (action === "preview") {
                 setPreviewReady((p) => ({ ...p, [digestKey]: true }));
               }
@@ -178,9 +285,11 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
         }
       }
     } catch (err) {
-      setLogs((l) => [...l, { type: "err", text: String(err) }]);
+      appendLog("err", String(err));
     } finally {
-      setActiveJob(null);
+      if (!(isVercel && action === "preview" && digestKey === "brief")) {
+        setActiveJob(null);
+      }
     }
   }
 
@@ -201,8 +310,8 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
 
   if (authed === null) {
     return (
-      <div style={{ backgroundColor: "#f5f4f0", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ fontFamily: "Arial, sans-serif", fontSize: "13px", color: "#888" }}>Loading…</p>
+      <div className="admin-page admin-page--loading">
+        <p className="admin-loading">Loading…</p>
       </div>
     );
   }
@@ -212,30 +321,30 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
   }
 
   return (
-    <div style={{ backgroundColor: "#f5f4f0", minHeight: "100vh", padding: "32px 16px" }}>
-      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+    <div className="admin-page">
+      <div className="admin-shell">
 
         {/* Header */}
-        <div style={{ marginBottom: "32px" }}>
-          <p style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#888", letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 4px" }}>
+        <div className="admin-header">
+          <p className="admin-kicker">
             Admin
           </p>
-          <h1 style={{ fontFamily: "Georgia, serif", fontSize: "32px", fontWeight: 700, color: "#111", margin: "0", paddingBottom: "16px", borderBottom: "3px solid #111" }}>
+          <h1 className="admin-title">
             The Operating Brief
           </h1>
         </div>
 
         {/* Subscriber stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "32px" }}>
+        <div className="admin-stats">
           {DIGESTS.map((d) => (
-            <div key={d.key} style={{ backgroundColor: "#ffffff", padding: "20px 24px" }}>
-              <p style={{ fontFamily: "Arial, sans-serif", fontSize: "10px", color: "#888", letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 8px" }}>
+            <div key={d.key} className="admin-card admin-card--stats">
+              <p className="admin-card__eyebrow">
                 {d.label.replace("The ", "")}
               </p>
-              <p style={{ fontFamily: "Georgia, serif", fontSize: "32px", fontWeight: 700, color: "#111", margin: 0 }}>
+              <p className="admin-card__number">
                 {stats ? stats[d.key] : "—"}
               </p>
-              <p style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#888", margin: "4px 0 0" }}>
+              <p className="admin-card__caption">
                 subscribers
               </p>
             </div>
@@ -243,7 +352,7 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
         </div>
 
         {/* Digest cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+        <div className="admin-grid">
           {DIGESTS.map((digest) => {
             const isRunningIngest = activeJob === `${digest.key}-ingest`;
             const isRunningPreview = activeJob === `${digest.key}-preview`;
@@ -252,35 +361,24 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
             const hasPreview = previewReady[digest.key];
 
             return (
-              <div key={digest.key} style={{ backgroundColor: "#ffffff", padding: "28px" }}>
-                <p style={{ fontFamily: "Arial, sans-serif", fontSize: "10px", color: "#888", letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 6px" }}>
+              <div key={digest.key} className="admin-card admin-card--digest">
+                <p className="admin-card__eyebrow">
                   Brief
                 </p>
-                <h2 style={{ fontFamily: "Georgia, serif", fontSize: "20px", fontWeight: 700, color: "#111", margin: "0 0 6px" }}>
+                <h2 className="admin-card__title">
                   {digest.label}
                 </h2>
-                <p style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#888", margin: "0 0 24px" }}>
+                <p className="admin-card__description">
                   {digest.description}
                 </p>
 
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <div className="admin-actions">
                   {/* Ingest (sports only) */}
                   {digest.hasIngest && (
                     <button
                       onClick={() => runAction(digest.key, "ingest")}
                       disabled={anyRunning}
-                      style={{
-                        backgroundColor: "transparent",
-                        color: anyRunning && !isRunningIngest ? "#aaa" : "#111",
-                        border: `1px solid ${anyRunning && !isRunningIngest ? "#ccc" : "#111"}`,
-                        padding: "10px 16px",
-                        fontFamily: "Arial, sans-serif",
-                        fontSize: "12px",
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        cursor: anyRunning ? "not-allowed" : "pointer",
-                        opacity: anyRunning && !isRunningIngest ? 0.4 : 1,
-                      }}
+                      className="admin-button admin-button--ghost"
                     >
                       {isRunningIngest ? "Ingesting…" : "Ingest"}
                     </button>
@@ -290,18 +388,7 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
                   <button
                     onClick={() => runAction(digest.key, "preview")}
                     disabled={anyRunning}
-                    style={{
-                      backgroundColor: isRunningPreview ? "#555" : "#111",
-                      color: "#fff",
-                      border: "none",
-                      padding: "10px 16px",
-                      fontFamily: "Arial, sans-serif",
-                      fontSize: "12px",
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      cursor: anyRunning ? "not-allowed" : "pointer",
-                      opacity: anyRunning && !isRunningPreview ? 0.4 : 1,
-                    }}
+                    className="admin-button admin-button--primary"
                   >
                     {isRunningPreview ? "Generating…" : "Generate"}
                   </button>
@@ -310,17 +397,7 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
                   <button
                     onClick={() => openPreview(digest)}
                     disabled={!hasPreview}
-                    style={{
-                      backgroundColor: "transparent",
-                      color: hasPreview ? "#111" : "#aaa",
-                      border: `1px solid ${hasPreview ? "#111" : "#ccc"}`,
-                      padding: "10px 16px",
-                      fontFamily: "Arial, sans-serif",
-                      fontSize: "12px",
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      cursor: hasPreview ? "pointer" : "not-allowed",
-                    }}
+                    className="admin-button admin-button--ghost"
                   >
                     Preview
                   </button>
@@ -333,18 +410,7 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
                       runAction(digest.key, "send");
                     }}
                     disabled={anyRunning || !hasPreview}
-                    style={{
-                      backgroundColor: isRunningSend ? "#555" : (hasPreview ? "#2a6e2a" : "transparent"),
-                      color: hasPreview ? "#fff" : "#aaa",
-                      border: `1px solid ${hasPreview ? (isRunningSend ? "#555" : "#2a6e2a") : "#ccc"}`,
-                      padding: "10px 16px",
-                      fontFamily: "Arial, sans-serif",
-                      fontSize: "12px",
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      cursor: (anyRunning || !hasPreview) ? "not-allowed" : "pointer",
-                      opacity: anyRunning && !isRunningSend ? 0.4 : 1,
-                    }}
+                    className="admin-button admin-button--success"
                   >
                     {isRunningSend ? "Sending…" : "Send"}
                   </button>
@@ -355,33 +421,28 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
         </div>
 
         {/* Log output */}
-        <div style={{ backgroundColor: "#1a1a1a", padding: "0" }}>
-          <div style={{ padding: "12px 20px", borderBottom: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <p style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#666", letterSpacing: "0.1em", textTransform: "uppercase", margin: 0 }}>
+        <div className="admin-log">
+          <div className="admin-log__header">
+            <p className="admin-log__label">
               Output {activeJob ? `— ${activeJob}` : ""}
             </p>
             {logs.length > 0 && (
               <button
                 onClick={() => setLogs([])}
-                style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#555", background: "none", border: "none", cursor: "pointer", letterSpacing: "0.06em", textTransform: "uppercase" }}
+                className="admin-log__clear"
               >
                 Clear
               </button>
             )}
           </div>
-          <div style={{ height: "320px", overflowY: "auto", padding: "16px 20px", fontFamily: "monospace", fontSize: "12px", lineHeight: "1.6" }}>
+          <div className="admin-log__body">
             {logs.length === 0 ? (
-              <p style={{ color: "#444", margin: 0 }}>No output yet. Click Generate to run a digest.</p>
+              <p className="admin-log__empty">No output yet. Click Generate to run a digest.</p>
             ) : (
               logs.map((entry, i) => (
                 <p
                   key={i}
-                  style={{
-                    margin: "0 0 2px",
-                    color: entry.type === "err" ? "#f87171" : entry.type === "done" ? "#86efac" : entry.type === "start" ? "#93c5fd" : "#d1d5db",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-all",
-                  }}
+                  className={`admin-log__line admin-log__line--${entry.type}`}
                 >
                   {entry.text}
                 </p>
@@ -392,11 +453,11 @@ export default function AdminDashboard({ previewToken }: AdminDashboardProps) {
         </div>
 
         {/* Footer note */}
-        <p style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#999", textAlign: "center", marginTop: "24px" }}>
+        <p className="admin-footer">
           Admin panel runs on the website. The Operating Brief and Markets previews open at{" "}
-          <code style={{ fontSize: "11px" }}>/preview/[token]</code> and{" "}
-          <code style={{ fontSize: "11px" }}>/markets/preview/[token]</code>; the other briefs still use{" "}
-          <code style={{ fontSize: "11px" }}>python serve.py</code> on port 8765 during local development.
+          <code>/preview/[token]</code> and{" "}
+          <code>/markets/preview/[token]</code>; the other briefs still use{" "}
+          <code>python serve.py</code> on port 8765 during local development.
         </p>
       </div>
     </div>

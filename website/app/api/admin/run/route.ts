@@ -3,11 +3,12 @@ import { spawn } from "child_process";
 import { existsSync } from "fs";
 import path from "path";
 import { getAdminSecret } from "../auth";
+import { dispatchDigestWorkflow, type DigestFlag, type DigestScript } from "@/lib/githubActions";
 
 export const dynamic = "force-dynamic";
 
 // Map action keys to script file + CLI flag
-const SCRIPTS: Record<string, { file: string; flag: string }> = {
+const SCRIPTS: Record<string, { file: DigestScript; flag: DigestFlag }> = {
   "brief-preview":   { file: "daily_digest.py",   flag: "--preview" },
   "brief-send":      { file: "daily_digest.py",   flag: "--send" },
   "markets-preview": { file: "markets_digest.py", flag: "--preview" },
@@ -18,6 +19,14 @@ const SCRIPTS: Record<string, { file: string; flag: string }> = {
   "paddock-preview": { file: "paddock_digest.py", flag: "--preview" },
   "paddock-send":    { file: "paddock_digest.py", flag: "--send" },
 };
+
+const VERCEL_WORKFLOW_ACTIONS = new Set([
+  "brief-preview",
+  "markets-preview",
+  "sports-ingest",
+  "sports-preview",
+  "paddock-preview",
+]);
 
 export async function GET(request: NextRequest) {
   // Auth check
@@ -33,9 +42,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { file, flag } = SCRIPTS[action];
-  const previewToken = process.env.PREVIEW_TOKEN;
   const isVercel = !!process.env.VERCEL;
-  const origin = request.nextUrl.origin;
 
   // Project root is one level above the website directory
   const projectRoot = path.resolve(process.cwd(), "..");
@@ -46,71 +53,25 @@ export async function GET(request: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
-      const send = (type: string, text: string) => {
-        const line = `data: ${JSON.stringify({ type, text })}\n\n`;
+      const send = (type: string, text: string, extra: Record<string, unknown> = {}) => {
+        const line = `data: ${JSON.stringify({ type, text, ...extra })}\n\n`;
         controller.enqueue(encoder.encode(line));
       };
 
-      if (isVercel && action === "brief-preview") {
-        const ghToken = process.env.GITHUB_PAT;
-        if (!ghToken || !previewToken) {
-          send("err", "GitHub dispatch is not configured");
-          controller.close();
-          return;
-        }
+      if (isVercel && VERCEL_WORKFLOW_ACTIONS.has(action)) {
+        const dispatchedAt = new Date().toISOString();
+        send("start", `Dispatching ${file} ${flag} to GitHub Actions…`);
 
-        send("start", "Dispatching brief preview to GitHub Actions…");
-
-        fetch(
-          "https://api.github.com/repos/theoperatingbrief-dotcom/the-operating-brief/actions/workflows/generate-digest.yml/dispatches",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${ghToken}`,
-              Accept: "application/vnd.github+json",
-              "X-GitHub-Api-Version": "2022-11-28",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ ref: "main" }),
-          }
-        )
-          .then(async (ghRes) => {
-            if (!ghRes.ok) {
-              const text = await ghRes.text();
-              send("err", `GitHub API error: ${text}`);
+        dispatchDigestWorkflow(file, flag)
+          .then(({ ok, status, text }) => {
+            if (!ok) {
+              send("err", `GitHub API error: ${text || `HTTP ${status}`}`);
               return;
             }
 
-            send("done", "Brief preview dispatched. Check GitHub Actions and refresh the preview page shortly.");
-          })
-          .catch((err: Error) => {
-            send("err", err.message);
-          })
-          .finally(() => {
-            controller.close();
-          });
-
-        return;
-      }
-
-      if (isVercel && action === "brief-send") {
-        if (!previewToken) {
-          send("err", "Preview token is not configured");
-          controller.close();
-          return;
-        }
-
-        send("start", "Sending brief via the hosted admin route…");
-
-        fetch(`${origin}/api/preview/${previewToken}/send`, { method: "POST" })
-          .then(async (res) => {
-            const text = await res.text();
-            if (!res.ok) {
-              send("err", `HTTP ${res.status}: ${text}`);
-              return;
-            }
-
-            send("done", text || "Brief sent.");
+            send("done", `${file} ${flag} dispatched. Check GitHub Actions and refresh the preview page shortly.`, {
+              startedAt: dispatchedAt,
+            });
           })
           .catch((err: Error) => {
             send("err", err.message);
