@@ -513,7 +513,7 @@ def build_prompt(entries: dict, market_data: str, movers_text: str, day_of_week:
 def call_claude(prompt: str) -> str:
     print("  Calling Anthropic API...")
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
+    model = os.environ.get("CLAUDE_MODEL") or "claude-sonnet-4-6"
     message = client.messages.create(
         model=model,
         max_tokens=8192,
@@ -1167,6 +1167,10 @@ def main():
         save_edition("draft", subject, preview_text, html_body)
 
         print(f"Preview saved → {preview_path}")
+        print(f"  Web preview: https://theoperatingbrief.com/preview/{os.environ.get('PREVIEW_TOKEN', '<PREVIEW_TOKEN>')}")
+        if os.environ.get("CI") == "true" or not sys.stdin.isatty():
+            print("Running unattended — draft saved. Approve and send from the web preview.")
+            return
         webbrowser.open(f"file://{preview_path}")
         # Generate social card and pop it open
         card_path = generate_markets_card(
@@ -1176,11 +1180,6 @@ def main():
         if card_path:
             import subprocess as _sp
             _sp.run(["open", card_path])
-        print(f"  Web preview: https://theoperatingbrief.com/preview/{os.environ.get('PREVIEW_TOKEN', '<PREVIEW_TOKEN>')}")
-        if not sys.stdin.isatty():
-            print("Running unattended — draft saved. Approve and send from the web preview.")
-            return
-        webbrowser.open(f"file://{preview_path}")
         print("\nReview the email, then type y to send.\n")
         answer = input("Send to subscribers now? (y/n): ").strip().lower()
         if answer != "y":

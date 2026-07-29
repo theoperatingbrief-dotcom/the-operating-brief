@@ -451,7 +451,7 @@ def build_prompt(
 def call_claude(prompt: str, retries: int = 3, timeout: int = 600) -> str:
     """Call the Anthropic API."""
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
+    model = os.environ.get("CLAUDE_MODEL") or "claude-sonnet-4-6"
 
     for attempt in range(1, retries + 1):
         print(f"  Calling Anthropic API (attempt {attempt}/{retries}, model={model})...")
@@ -1437,7 +1437,7 @@ def main():
         save_edition("draft", subject, digest.get("ai_overview", "")[:120], html_body)
         print(f"Preview saved → {preview_path}")
         print(f"  Web preview: https://theoperatingbrief.com/preview/{os.environ.get('PREVIEW_TOKEN', '<PREVIEW_TOKEN>')}")
-        if not sys.stdin.isatty():
+        if os.environ.get("CI") == "true" or not sys.stdin.isatty():
             print("Running unattended — draft saved. Approve and send from the web preview.")
             return
         webbrowser.open(f"file://{preview_path}")

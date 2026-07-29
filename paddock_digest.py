@@ -207,7 +207,7 @@ def build_prompt(entries: dict) -> str:
 def call_claude(prompt: str) -> str:
     print("  Calling Anthropic API...")
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
+    model = os.environ.get("CLAUDE_MODEL") or "claude-sonnet-4-6"
     message = client.messages.create(
         model=model,
         max_tokens=8192,
@@ -532,10 +532,10 @@ def main():
 
     if args.preview:
         print(f"Preview saved → {preview_path}")
-        webbrowser.open(f"file://{preview_path}")
-        if not sys.stdin.isatty():
+        if os.environ.get("CI") == "true" or not sys.stdin.isatty():
             print("Running unattended — preview saved. Run 'python3 paddock_digest.py --send' to send.")
             return
+        webbrowser.open(f"file://{preview_path}")
         print("\nReview the email in your browser, then come back here.\n")
         answer = input("Send to subscribers? (y/n): ").strip().lower()
         if answer != "y":

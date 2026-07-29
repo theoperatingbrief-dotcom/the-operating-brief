@@ -714,7 +714,7 @@ def build_briefing_prompt(sport_summaries: dict, mode: str, is_thursday: bool = 
 def call_claude(prompt: str, retries: int = 2, timeout: int = 240) -> str:
     """Call the Anthropic API."""
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
+    model = os.environ.get("CLAUDE_MODEL") or "claude-sonnet-4-6"
 
     for attempt in range(1, retries + 1):
         print(f"  Calling Anthropic API (attempt {attempt}/{retries}, model={model})...")
@@ -1483,23 +1483,22 @@ def main():
     with open(preview_path, "w") as f:
         f.write(html_body)
     print(f"Preview saved → {preview_path}")
-    webbrowser.open(f"file://{preview_path}")
-
-    # Generate social card from THE NUMBER stat
-    card_path = generate_sports_card(
-        digest.get("the_number_stat", ""),
-        digest.get("the_number_context", ""),
-        edition_label,
-    )
-    if card_path:
-        import subprocess as _sp
-        _sp.run(["open", card_path])  # opens in Preview on macOS
-
     if args.preview:
         print(f"  Web preview: https://theoperatingbrief.com/preview/{os.environ.get('PREVIEW_TOKEN', '<PREVIEW_TOKEN>')}")
-        if not sys.stdin.isatty():
+        if os.environ.get("CI") == "true" or not sys.stdin.isatty():
             print("Running unattended — draft saved. Approve and send from the web preview.")
             return
+        webbrowser.open(f"file://{preview_path}")
+
+        # Generate social card from THE NUMBER stat
+        card_path = generate_sports_card(
+            digest.get("the_number_stat", ""),
+            digest.get("the_number_context", ""),
+            edition_label,
+        )
+        if card_path:
+            import subprocess as _sp
+            _sp.run(["open", card_path])  # opens in Preview on macOS
         print("\nReview the email, then type y to send.\n")
         answer = input("Send to subscribers now? (y/n): ").strip().lower()
         if answer != "y":

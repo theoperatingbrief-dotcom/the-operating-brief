@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-const NAV_LINKS = [
-  { label: "The Operating Brief", href: "/" },
-  { label: "The Sporting Brief", href: "/sporting" },
-  { label: "The Markets Brief", href: "/markets" },
-];
+import { EditorialShell } from "../components/EditorialShell";
 
 export default function MarketsHome() {
   const [email, setEmail] = useState("");
@@ -41,132 +36,90 @@ export default function MarketsHome() {
   }
 
   return (
-    <div style={{ backgroundColor: "#f5f4f0", minHeight: "100vh", padding: "40px 16px" }}>
-      <div style={{ maxWidth: "620px", margin: "0 auto", backgroundColor: "#ffffff", padding: "48px" }}>
+    <EditorialShell
+      activeHref="/markets"
+      eyebrow="Daily · ASX Pre-Market"
+      title="The Markets Brief"
+      subtitle="ASX · Macro · Commodities · FX · Bitcoin"
+      archiveHref="/markets/archive"
+      archiveLabel="View past editions →"
+      footerCopy="Your daily ASX pre-market briefing."
+    >
+      <section className="content-stack">
+        <p style={{ fontFamily: "Georgia, serif", fontSize: "18px", color: "#222222", lineHeight: 1.7, maxWidth: "58ch" }}>
+          Every weekday morning before the ASX opens, <em>The Markets Brief</em> delivers live market data, overnight US moves, ASX movers, and the macro stories driving Australian markets.
+        </p>
+        <p style={{ fontFamily: "Georgia, serif", fontSize: "18px", color: "#222222", lineHeight: 1.7, maxWidth: "58ch" }}>
+          In your inbox by 7:30am AEST. Free.
+        </p>
+      </section>
 
-        {/* Cross-brief nav */}
-        <nav style={{ marginBottom: "32px", paddingBottom: "16px", borderBottom: "1px solid #eeeeee" }}>
-          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-            {NAV_LINKS.map((link) => {
-              const active = link.href === "/markets";
-              return (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    fontFamily: "Arial, sans-serif",
-                    fontSize: "11px",
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                    color: active ? "#111111" : "#999999",
-                    textDecoration: "none",
-                    fontWeight: active ? 700 : 400,
-                    borderBottom: active ? "2px solid #111111" : "none",
-                    paddingBottom: "2px",
-                  }}
-                >
-                  {link.label}
-                </a>
-              );
-            })}
-          </div>
-        </nav>
+      <div style={{ borderTop: "1px solid #dddddd", margin: "10px 0 0" }} />
 
-        {/* Header */}
-        <header style={{ marginBottom: "32px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "8px" }}>
-            <p style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#888888", letterSpacing: "0.12em", textTransform: "uppercase", margin: "0" }}>
-              Daily · ASX Pre-Market
-            </p>
-            <a href="/markets/archive" style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#888888", textDecoration: "none", borderBottom: "1px solid #cccccc" }}>
-              View past editions →
-            </a>
-          </div>
-          <h1 style={{ fontFamily: "Georgia, serif", fontSize: "40px", fontWeight: 700, color: "#111111", lineHeight: 1.1, paddingBottom: "16px", borderBottom: "3px solid #111111", margin: "0" }}>
-            The Markets Brief
-          </h1>
-          <p style={{ fontFamily: "Arial, sans-serif", fontSize: "13px", color: "#555555", marginTop: "10px" }}>
-            ASX · Macro · Commodities · FX · Bitcoin
+      {status === "success" ? (
+        <section className="content-stack">
+          <p className="eyebrow">Confirmed</p>
+          <p style={{ fontFamily: "Georgia, serif", fontSize: "22px", color: "#111111", fontWeight: 700, lineHeight: 1.35, maxWidth: "28ch" }}>
+            You&apos;re in. See you at 7:30am.
           </p>
-        </header>
-
-        {/* Body */}
-        <div style={{ marginBottom: "40px" }}>
-          <p style={{ fontFamily: "Georgia, serif", fontSize: "16px", color: "#222222", lineHeight: 1.75, marginBottom: "16px" }}>
-            Every weekday morning before the ASX opens, <em>The Markets Brief</em> delivers live market data, overnight US moves, ASX movers, and the macro stories driving Australian markets.
+        </section>
+      ) : status === "duplicate" ? (
+        <section className="content-stack">
+          <p className="eyebrow">Already subscribed</p>
+          <p style={{ fontFamily: "Georgia, serif", fontSize: "17px", color: "#222222", lineHeight: 1.7, maxWidth: "52ch" }}>
+            That email is already on the list. See you tomorrow morning.
           </p>
-          <p style={{ fontFamily: "Georgia, serif", fontSize: "16px", color: "#222222", lineHeight: 1.75 }}>
-            In your inbox by 7:30am AEST. Free.
-          </p>
-        </div>
+        </section>
+      ) : (
+        <form onSubmit={handleSubmit} className="content-stack">
+          <p className="eyebrow">Subscribe - Free</p>
 
-        <div style={{ borderTop: "1px solid #dddddd", marginBottom: "40px" }} />
+          <input
+            type="email"
+            placeholder="Your email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{
+              width: "100%",
+              border: "1px solid #111111",
+              borderRadius: 0,
+              padding: "12px",
+              fontFamily: "Arial, sans-serif",
+              fontSize: "14px",
+              color: "#222222",
+              backgroundColor: "#ffffff",
+              outline: "none",
+            }}
+          />
 
-        {/* Subscribe Form */}
-        {status === "success" ? (
-          <div>
-            <p style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#888888", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "12px" }}>
-              Confirmed
+          {status === "error" && (
+            <p style={{ fontFamily: "Arial, sans-serif", fontSize: "13px", color: "#222222" }}>
+              {errorMessage}
             </p>
-            <p style={{ fontFamily: "Georgia, serif", fontSize: "20px", color: "#111111", fontWeight: 700 }}>
-              You&apos;re in. See you at 7:30am.
-            </p>
-          </div>
-        ) : status === "duplicate" ? (
-          <div>
-            <p style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#888888", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "12px" }}>
-              Already subscribed
-            </p>
-            <p style={{ fontFamily: "Georgia, serif", fontSize: "16px", color: "#222222", lineHeight: 1.75 }}>
-              That email is already on the list. See you tomorrow morning.
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <p style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", color: "#888888", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "16px" }}>
-              Subscribe — Free
-            </p>
+          )}
 
-            <div style={{ marginBottom: "12px" }}>
-              <input
-                type="email"
-                placeholder="Your email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={{ width: "100%", border: "1px solid #111111", borderRadius: 0, padding: "12px", fontFamily: "Arial, sans-serif", fontSize: "14px", color: "#222222", backgroundColor: "#ffffff", outline: "none", boxSizing: "border-box" }}
-              />
-            </div>
-
-            {status === "error" && (
-              <p style={{ fontFamily: "Arial, sans-serif", fontSize: "13px", color: "#222222", marginBottom: "12px" }}>
-                {errorMessage}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={status === "loading"}
-              style={{ backgroundColor: status === "loading" ? "#555555" : "#111111", color: "#ffffff", border: "none", borderRadius: 0, padding: "12px 24px", fontFamily: "Arial, sans-serif", fontSize: "14px", letterSpacing: "0.08em", textTransform: "uppercase", cursor: status === "loading" ? "not-allowed" : "pointer", transition: "background-color 0.15s" }}
-              onMouseEnter={(e) => { if (status !== "loading") (e.target as HTMLButtonElement).style.backgroundColor = "#333333"; }}
-              onMouseLeave={(e) => { if (status !== "loading") (e.target as HTMLButtonElement).style.backgroundColor = "#111111"; }}
-            >
-              {status === "loading" ? "Subscribing…" : "Subscribe"}
-            </button>
-          </form>
-        )}
-
-        {/* Footer */}
-        <footer style={{ marginTop: "48px", borderTop: "2px solid #111111", paddingTop: "16px" }}>
-          <p style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#888888", marginBottom: "8px" }}>
-            Your daily ASX pre-market briefing.
-          </p>
-          <p style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#888888", margin: 0 }}>
-            <a href="/privacy" style={{ color: "#555555", marginRight: "16px", textDecoration: "underline" }}>Privacy Policy</a>
-            <a href="/terms" style={{ color: "#555555", textDecoration: "underline" }}>Terms of Use</a>
-          </p>
-        </footer>
-      </div>
-    </div>
+          <button
+            type="submit"
+            disabled={status === "loading"}
+            style={{
+              backgroundColor: status === "loading" ? "#555555" : "#111111",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: 0,
+              padding: "12px 24px",
+              fontFamily: "Arial, sans-serif",
+              fontSize: "14px",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              cursor: status === "loading" ? "not-allowed" : "pointer",
+              width: "fit-content",
+            }}
+          >
+            {status === "loading" ? "Subscribing…" : "Subscribe"}
+          </button>
+        </form>
+      )}
+    </EditorialShell>
   );
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { dispatchDigestWorkflow } from "@/lib/githubActions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,30 +12,10 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const ghToken = process.env.GITHUB_PAT;
-  const repo = "theoperatingbrief-dotcom/the-operating-brief";
+  const { ok, status, text } = await dispatchDigestWorkflow("daily_digest.py", "--preview");
 
-  if (!ghToken) {
-    return NextResponse.json({ error: "GITHUB_PAT not configured" }, { status: 500 });
-  }
-
-  const res = await fetch(
-    `https://api.github.com/repos/${repo}/actions/workflows/generate-digest.yml/dispatches`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${ghToken}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ ref: "main" }),
-    }
-  );
-
-  if (!res.ok) {
-    const text = await res.text();
-    return NextResponse.json({ error: `GitHub API error: ${text}` }, { status: 500 });
+  if (!ok) {
+    return NextResponse.json({ error: `GitHub API error: ${text}` }, { status: status || 500 });
   }
 
   return NextResponse.json({ ok: true });

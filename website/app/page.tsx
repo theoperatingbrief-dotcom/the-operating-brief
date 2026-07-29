@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { EditorialShell } from "./components/EditorialShell";
 
 export default function Home() {
   const [email, setEmail] = useState("");
@@ -45,362 +46,159 @@ export default function Home() {
     }
   }
 
-  const navLinks = [
-    { label: "The Operating Brief", href: "/" },
-    { label: "The Sporting Brief", href: "/sporting" },
-    { label: "The Markets Brief", href: "/markets" },
-  ];
-
   return (
-    <div style={{ backgroundColor: "#f5f4f0", minHeight: "100vh", padding: "40px 16px" }}>
-      <div
-        style={{
-          maxWidth: "620px",
-          margin: "0 auto",
-          backgroundColor: "#ffffff",
-          padding: "48px",
-        }}
-      >
-        {/* Cross-brief nav */}
-        <nav style={{ marginBottom: "32px", paddingBottom: "16px", borderBottom: "1px solid #eeeeee" }}>
-          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-            {navLinks.map((link) => {
-              const active = link.href === "/";
-              return (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    fontFamily: "Arial, sans-serif",
-                    fontSize: "11px",
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                    color: active ? "#111111" : "#999999",
-                    textDecoration: "none",
-                    fontWeight: active ? 700 : 400,
-                    borderBottom: active ? "2px solid #111111" : "none",
-                    paddingBottom: "2px",
-                  }}
-                >
-                  {link.label}
-                </a>
-              );
-            })}
-          </div>
-        </nav>
+    <EditorialShell
+      activeHref="/"
+      eyebrow="Daily Briefing"
+      title="The Operating Brief"
+      subtitle="For Australian business operators"
+      archiveHref="/archive"
+      archiveLabel="View past editions →"
+      footerCopy="Your daily AI-powered business briefing."
+    >
+      <section className="content-stack">
+        <p style={{ fontFamily: "Georgia, serif", fontSize: "18px", color: "#222222", lineHeight: 1.7, maxWidth: "58ch" }}>
+          Every weekday morning, <em>The Operating Brief</em> delivers a sharp,
+          AI-powered summary of the business and technology stories that matter
+          to operators running companies in Australia.
+        </p>
+        <p style={{ fontFamily: "Georgia, serif", fontSize: "18px", color: "#222222", lineHeight: 1.7, maxWidth: "58ch" }}>
+          No noise. No filler. Straight to your inbox before 7 am.
+        </p>
+      </section>
 
-        {/* Header */}
-        <header style={{ marginBottom: "32px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "8px" }}>
-            <p
-              style={{
-                fontFamily: "Arial, sans-serif",
-                fontSize: "11px",
-                color: "#888888",
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                margin: "0",
-              }}
-            >
-              Daily Briefing
-            </p>
-            <a
-              href="/archive"
-              style={{
-                fontFamily: "Arial, sans-serif",
-                fontSize: "12px",
-                color: "#888888",
-                textDecoration: "none",
-                borderBottom: "1px solid #cccccc",
-              }}
-            >
-              View past editions →
-            </a>
-          </div>
-          <h1
-            style={{
-              fontFamily: "Georgia, serif",
-              fontSize: "40px",
-              fontWeight: 700,
-              color: "#111111",
-              lineHeight: 1.1,
-              paddingBottom: "16px",
-              borderBottom: "3px solid #111111",
-            }}
-          >
-            The Operating Brief
-          </h1>
-          <p
-            style={{
-              fontFamily: "Arial, sans-serif",
-              fontSize: "13px",
-              color: "#555555",
-              marginTop: "10px",
-            }}
-          >
-            For Australian business operators
+      <div style={{ borderTop: "1px solid #dddddd", margin: "10px 0 0" }} />
+
+      {status === "success" ? (
+        <section className="content-stack">
+          <p className="eyebrow">Confirmed</p>
+          <p style={{ fontFamily: "Georgia, serif", fontSize: "22px", color: "#111111", fontWeight: 700, lineHeight: 1.35, maxWidth: "28ch" }}>
+            You&apos;re in. Check your inbox tomorrow morning.
           </p>
-        </header>
-
-        {/* Body */}
-        <div style={{ marginBottom: "40px" }}>
-          <p
-            style={{
-              fontFamily: "Georgia, serif",
-              fontSize: "16px",
-              color: "#222222",
-              lineHeight: 1.75,
-              marginBottom: "16px",
-            }}
-          >
-            Every weekday morning, <em>The Operating Brief</em> delivers a sharp,
-            AI-powered summary of the business and technology stories that matter
-            to operators running companies in Australia.
-          </p>
-          <p
-            style={{
-              fontFamily: "Georgia, serif",
-              fontSize: "16px",
-              color: "#222222",
-              lineHeight: 1.75,
-            }}
-          >
-            No noise. No filler. Straight to your inbox before 7 am.
-          </p>
-        </div>
-
-        <div style={{ borderTop: "1px solid #dddddd", marginBottom: "40px" }} />
-
-        {/* Subscribe Form */}
-        {status === "success" ? (
-          <div>
-            <p
-              style={{
-                fontFamily: "Arial, sans-serif",
-                fontSize: "11px",
-                color: "#888888",
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                marginBottom: "12px",
-              }}
-            >
-              Confirmed
-            </p>
-            <p
-              style={{
-                fontFamily: "Georgia, serif",
-                fontSize: "20px",
-                color: "#111111",
-                fontWeight: 700,
-                marginBottom: "24px",
-              }}
-            >
-              You&apos;re in. Check your inbox tomorrow morning.
-            </p>
-            {referralUrl && (
-              <div style={{ backgroundColor: "#f5f4f0", padding: "24px", marginTop: "8px" }}>
-                <p
-                  style={{
-                    fontFamily: "Arial, sans-serif",
-                    fontSize: "11px",
-                    color: "#888888",
-                    letterSpacing: "0.12em",
-                    textTransform: "uppercase",
-                    margin: "0 0 8px 0",
-                  }}
-                >
-                  Your referral link
-                </p>
-                <p
-                  style={{
-                    fontFamily: "Georgia, serif",
-                    fontSize: "15px",
-                    color: "#222222",
-                    lineHeight: 1.6,
-                    margin: "0 0 16px 0",
-                  }}
-                >
-                  First to 10 referrals wins an official <em>Operating Brief</em> mug. Share your link and start the race.
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-                  <code
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: "13px",
-                      color: "#111111",
-                      backgroundColor: "#ffffff",
-                      padding: "8px 12px",
-                      border: "1px solid #dddddd",
-                      flex: 1,
-                      minWidth: "0",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {referralUrl}
-                  </code>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(referralUrl)}
-                    style={{
-                      backgroundColor: "#111111",
-                      color: "#ffffff",
-                      border: "none",
-                      padding: "8px 16px",
-                      fontFamily: "Arial, sans-serif",
-                      fontSize: "12px",
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      cursor: "pointer",
-                      flexShrink: 0,
-                    }}
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : status === "duplicate" ? (
-          <div>
-            <p
-              style={{
-                fontFamily: "Arial, sans-serif",
-                fontSize: "11px",
-                color: "#888888",
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                marginBottom: "12px",
-              }}
-            >
-              Already subscribed
-            </p>
-            <p
-              style={{
-                fontFamily: "Georgia, serif",
-                fontSize: "16px",
-                color: "#222222",
-                lineHeight: 1.75,
-              }}
-            >
-              That email is already on the list. See you in the morning.
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <p
-              style={{
-                fontFamily: "Arial, sans-serif",
-                fontSize: "11px",
-                color: "#888888",
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                marginBottom: "16px",
-              }}
-            >
-              Subscribe — Free
-            </p>
-
-            <div style={{ marginBottom: "12px" }}>
-              <input
-                type="text"
-                placeholder="First name (optional)"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                style={{
-                  width: "100%",
-                  border: "1px solid #111111",
-                  borderRadius: 0,
-                  padding: "12px",
-                  fontFamily: "Arial, sans-serif",
-                  fontSize: "14px",
-                  color: "#222222",
-                  backgroundColor: "#ffffff",
-                  outline: "none",
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: "12px" }}>
-              <input
-                type="email"
-                placeholder="Your email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={{
-                  width: "100%",
-                  border: "1px solid #111111",
-                  borderRadius: 0,
-                  padding: "12px",
-                  fontFamily: "Arial, sans-serif",
-                  fontSize: "14px",
-                  color: "#222222",
-                  backgroundColor: "#ffffff",
-                  outline: "none",
-                }}
-              />
-            </div>
-
-            {status === "error" && (
-              <p
-                style={{
-                  fontFamily: "Arial, sans-serif",
-                  fontSize: "13px",
-                  color: "#222222",
-                  marginBottom: "12px",
-                }}
-              >
-                {errorMessage}
+          {referralUrl && (
+            <div style={{ backgroundColor: "#f7f5ef", padding: "22px", border: "1px solid #e4ddd0" }}>
+              <p className="eyebrow" style={{ marginBottom: "8px" }}>
+                Your referral link
               </p>
-            )}
+              <p style={{ fontFamily: "Georgia, serif", fontSize: "15px", color: "#222222", lineHeight: 1.65, marginBottom: "14px" }}>
+                First to 10 referrals wins an official <em>Operating Brief</em> mug. Share your link and start the race.
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                <code
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "13px",
+                    color: "#111111",
+                    backgroundColor: "#ffffff",
+                    padding: "8px 12px",
+                    border: "1px solid #dddddd",
+                    flex: 1,
+                    minWidth: "0",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {referralUrl}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(referralUrl)}
+                  style={{
+                    backgroundColor: "#111111",
+                    color: "#ffffff",
+                    border: "none",
+                    padding: "8px 16px",
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "12px",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      ) : status === "duplicate" ? (
+        <section className="content-stack">
+          <p className="eyebrow">Already subscribed</p>
+          <p style={{ fontFamily: "Georgia, serif", fontSize: "17px", color: "#222222", lineHeight: 1.7, maxWidth: "52ch" }}>
+            That email is already on the list. See you in the morning.
+          </p>
+        </section>
+      ) : (
+        <form onSubmit={handleSubmit} className="content-stack">
+          <p className="eyebrow">Subscribe - Free</p>
 
-            <button
-              type="submit"
-              disabled={status === "loading"}
+          <div style={{ display: "grid", gap: "12px" }}>
+            <input
+              type="text"
+              placeholder="First name (optional)"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               style={{
-                backgroundColor: status === "loading" ? "#555555" : "#111111",
-                color: "#ffffff",
-                border: "none",
+                width: "100%",
+                border: "1px solid #111111",
                 borderRadius: 0,
-                padding: "12px 24px",
+                padding: "12px",
                 fontFamily: "Arial, sans-serif",
                 fontSize: "14px",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                cursor: status === "loading" ? "not-allowed" : "pointer",
-                transition: "background-color 0.15s",
+                color: "#222222",
+                backgroundColor: "#ffffff",
+                outline: "none",
               }}
-              onMouseEnter={(e) => {
-                if (status !== "loading") (e.target as HTMLButtonElement).style.backgroundColor = "#333333";
+            />
+            <input
+              type="email"
+              placeholder="Your email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                border: "1px solid #111111",
+                borderRadius: 0,
+                padding: "12px",
+                fontFamily: "Arial, sans-serif",
+                fontSize: "14px",
+                color: "#222222",
+                backgroundColor: "#ffffff",
+                outline: "none",
               }}
-              onMouseLeave={(e) => {
-                if (status !== "loading") (e.target as HTMLButtonElement).style.backgroundColor = "#111111";
-              }}
-            >
-              {status === "loading" ? "Subscribing…" : "Subscribe"}
-            </button>
-          </form>
-        )}
+            />
+          </div>
 
-        {/* Footer */}
-        <footer style={{ marginTop: "48px", borderTop: "2px solid #111111", paddingTop: "16px" }}>
-          <p
+          {status === "error" && (
+            <p style={{ fontFamily: "Arial, sans-serif", fontSize: "13px", color: "#222222" }}>
+              {errorMessage}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={status === "loading"}
             style={{
+              backgroundColor: status === "loading" ? "#555555" : "#111111",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: 0,
+              padding: "12px 24px",
               fontFamily: "Arial, sans-serif",
-              fontSize: "12px",
-              color: "#888888",
-              marginBottom: "8px",
+              fontSize: "14px",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              cursor: status === "loading" ? "not-allowed" : "pointer",
+              width: "fit-content",
             }}
           >
-            Your daily AI-powered business briefing — published weekday mornings.
-          </p>
-          <p style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", color: "#888888", margin: 0 }}>
-            <a href="/privacy" style={{ color: "#555555", marginRight: "16px", textDecoration: "underline" }}>Privacy Policy</a>
-            <a href="/terms" style={{ color: "#555555", textDecoration: "underline" }}>Terms of Use</a>
-          </p>
-        </footer>
-      </div>
-    </div>
+            {status === "loading" ? "Subscribing…" : "Subscribe"}
+          </button>
+        </form>
+      )}
+    </EditorialShell>
   );
 }
